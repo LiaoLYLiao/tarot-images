@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>星空塔羅</title>
+<meta name="theme-color" content="#07061a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Noto+Serif+TC:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="sky"></canvas>
+<svg id="lines"></svg>
+<div id="slots"></div>
+<div id="table"></div>
+<div id="labels"></div>
+<div id="gallery" hidden><div id="ring"></div><p class="gallery-hint">拖曳旋轉 · 點擊看牌</p></div>
+<canvas id="fx"></canvas>
+
+<header id="top">
+  <h1><span class="en">Star Tarot</span><span class="zh">星空塔羅</span></h1>
+  <nav>
+    <div class="seg" id="spreadPicker" role="tablist">
+      <button data-spread="one">每日一牌</button>
+      <button data-spread="three" class="on">時間之流</button>
+      <button data-spread="celtic">凱爾特十字</button>
+    </div>
+    <button class="icon" id="galleryBtn" title="牌卡畫廊">🃏</button>
+    <button class="icon" id="soundBtn" title="音效">🔊</button>
+  </nav>
+</header>
+
+<div id="intro">
+  <input id="question" maxlength="60" placeholder="在心中默念你的問題（可不填）" autocomplete="off">
+  <button class="primary" id="shuffleBtn">✦ 洗牌</button>
+  <p class="sub">點擊牌堆或按下洗牌 · 手機也可以搖一搖</p>
+</div>
+
+<p id="hint"></p>
+
+<div id="actions" hidden>
+  <button class="primary" id="readingBtn">📜 完整解讀</button>
+  <button id="againBtn">↻ 再抽一次</button>
+</div>
+
+<div id="tooltip" hidden></div>
+
+<div id="modal" hidden>
+  <div class="modal-body">
+    <button class="close" aria-label="關閉">✕</button>
+    <div class="modal-card"><div class="mcard"><img alt=""><div class="holo"></div><div class="glare"></div></div></div>
+    <div class="modal-text"></div>
+  </div>
+</div>
+
+<div id="sheet" hidden>
+  <div class="sheet-body">
+    <button class="close" aria-label="關閉">✕</button>
+    <div class="sheet-content"></div>
+  </div>
+</div>
+
+<script src="cards.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

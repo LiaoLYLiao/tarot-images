@@ -32,6 +32,9 @@ const state = {
   layout: [],
   fanN: 0,
   dealing: false,
+  topic: 'general',
+  readingId: null,
+  readingTime: 0,
   muted: false,
 };
 
@@ -593,6 +596,9 @@ async function pick(el) {
 
 function enterReading() {
   state.phase = 'reading';
+  state.readingTime = Date.now();
+  state.readingId = state.readingTime.toString(36) + Math.floor(rand() * 1e6).toString(36);
+  saveHistory(currentReading());
   const fan = fanGeom();
   state.els.forEach((el, i) => {
     if (!el.classList.contains('fan')) return;
@@ -742,12 +748,53 @@ $('#lines').addEventListener('click', (e) => {
 });
 document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#lines')) closeTooltip(); });
 
+/* ================= 本機儲存 ================= */
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
+  },
+};
+const HISTORY_KEY = 'starTarot.history';
+const CARD_BY_FILE = Object.fromEntries(CARDS.map((c) => [c.file, c]));
+
+// 目前桌上的這一次占卜
+function currentReading() {
+  return {
+    id: state.readingId, t: state.readingTime, spread: state.spread, topic: state.topic,
+    question: $('#question').value.trim(), picks: state.picks,
+  };
+}
+function saveHistory(r) {
+  const list = store.get(HISTORY_KEY, []);
+  list.unshift({
+    id: r.id, t: r.t, spread: r.spread, topic: r.topic, question: r.question, note: '',
+    picks: r.picks.map((p) => ({ file: p.card.file, reversed: p.reversed, slot: p.slot })),
+  });
+  store.set(HISTORY_KEY, list.slice(0, 200));
+}
+function readingFromHistory(h) {
+  return { ...h, picks: h.picks.map((p) => ({ ...p, card: CARD_BY_FILE[p.file] })).filter((p) => p.card) };
+}
+function updateHistory(id, patch) {
+  const list = store.get(HISTORY_KEY, []);
+  const h = list.find((x) => x.id === id);
+  if (h) { Object.assign(h, patch); store.set(HISTORY_KEY, list); }
+}
+const fmtTime = (t) => {
+  const d = new Date(t), z = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}/${z(d.getMonth() + 1)}/${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`;
+};
+const esc = (str) => str.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 /* ================= 牌的詳細資訊 ================= */
 const modal = $('#modal');
 const mcard = modal.querySelector('.mcard');
 bindHolo(modal.querySelector('.modal-card'), mcard);
 
-function openModal(p, standalone) {
+function openModal(p, standalone, reading = currentReading()) {
   const { card, reversed } = p;
   const img = mcard.querySelector('img');
   img.src = thumb(card);
@@ -761,23 +808,23 @@ function openModal(p, standalone) {
   mcard.style.animation = '';
 
   const el = ELEMENTS[card.element];
-  const sp = SPREADS[state.spread];
+  const sp = SPREADS[reading.spread];
   const pos = standalone ? null : sp.positions[p.slot];
+  const focus = standalone ? null : TOPICS[reading.topic].field;
   let rel = '';
   if (!standalone) {
     const items = sp.edges.filter((e) => e.includes(p.slot)).map(([a, b]) => {
-      const other = state.picks.find((q) => q.slot === (a === p.slot ? b : a));
-      if (!other || !other.el.classList.contains('flipped')) return '';
+      const other = reading.picks.find((q) => q.slot === (a === p.slot ? b : a));
+      if (!other || (other.el && !other.el.classList.contains('flipped'))) return '';
       const r = relationOf(p, other);
       return `<div><b>與「${sp.positions[other.slot].name}」${other.card.zh}</b>：${r.text}${r.notes.map((n) => ` ${n}`).join('')}</div>`;
     }).join('');
     if (items) rel = `<section><h4>與其他牌的關係</h4><div class="rel">${items}</div></section>`;
   }
+  const box = (field, title) => `<div class="${focus === field ? 'focus' : ''}"><h4>${title}</h4><p>${card[field]}</p></div>`;
   const aspects = `
     <div class="aspects">
-      <div><h4>💗 感情</h4><p>${card.love}</p></div>
-      <div><h4>💼 事業／學業</h4><p>${card.work}</p></div>
-      <div><h4>✦ 建議</h4><p>${card.advice}</p></div>
+      ${box('love', '💗 感情')}${box('work', '💼 事業／學業')}${box('advice', '✦ 建議')}
     </div>
     ${!standalone && reversed ? '<p class="other">逆位時，以上面向的能量會受阻或向內收，請特別留意其中提醒的部分。</p>' : ''}`;
   const body = standalone
@@ -806,18 +853,33 @@ modal.addEventListener('click', (e) => { if (e.target === modal || e.target.clos
 
 /* ================= 完整解讀 ================= */
 const sheet = $('#sheet');
-function openSheet() {
-  const sp = SPREADS[state.spread];
-  const picks = [...state.picks].sort((a, b) => a.slot - b.slot);
+let sheetReading = null;
+
+function openSheet(reading = currentReading(), fromHistory = false) {
+  sheetReading = reading;
+  const sp = SPREADS[reading.spread];
+  const topic = TOPICS[reading.topic];
+  const picks = [...reading.picks].sort((a, b) => a.slot - b.slot);
   const counts = {};
   picks.forEach((p) => (counts[p.card.element] = (counts[p.card.element] || 0) + 1));
-  const notes = overviewNotes(picks, state.spread);
-  const story = storyParagraphs(picks, state.spread, sp);
-  const q = $('#question').value.trim();
+  const notes = overviewNotes(picks, reading.spread);
+  const story = storyParagraphs(picks, reading.spread, sp);
+  const focus = topicReading(picks, reading.spread, sp, reading.topic);
   const posName = (p) => sp.positions[p.slot].name;
+  const aspect = (field, title) => `
+    <details ${(topic.field || 'love') === field ? 'open' : ''}><summary>${title}</summary>
+      ${picks.map((p) => `<p><b>${posName(p)}・${p.card.zh}</b>：${p.card[field]}</p>`).join('')}
+    </details>`;
+  const aspectOrder = [['love', '💗 感情面向'], ['work', '💼 事業／學業面向']];
+  if (topic.field === 'work') aspectOrder.reverse();
+  const saved = reading.id && store.get(HISTORY_KEY, []).find((h) => h.id === reading.id);
+
   sheet.querySelector('.sheet-content').innerHTML = `
+    ${fromHistory ? '<button class="back-btn" data-act="history">← 返回紀錄</button>' : ''}
     <h2>${sp.name}</h2>
-    <p class="q">${q ? `「${q}」` : '你的牌陣'}</p>
+    <p class="q">${reading.question ? `「${esc(reading.question)}」` : '你的牌陣'}</p>
+    <p class="meta"><span>${topic.icon} ${topic.zh}</span>${reading.t ? `<span>${fmtTime(reading.t)}</span>` : ''}</p>
+    <div class="sheet-tools"><button data-act="share">📤 存成圖片</button></div>
 
     <h3>整體能量</h3>
     <div class="elements">${Object.entries(counts).map(([k, v]) => `<span style="color:${ELEMENTS[k].color}">${ELEMENTS[k].zh} × ${v}</span>`).join('')}</div>
@@ -826,9 +888,15 @@ function openSheet() {
     <h3>牌陣的故事</h3>
     ${story.map((t) => `<p class="story">${t}</p>`).join('')}
 
+    ${focus ? `
+    <h3>${topic.icon} ${topic.zh}上的解讀</h3>
+    <p class="story">${focus.intro}</p>
+    ${focus.items.map((it) => `<p class="note-line"><b>${it.label}</b>：${it.text}</p>`).join('')}` : ''}
+
     <h3>逐張解讀</h3>
     ${picks.map((p) => {
-      const link = themeLink(p, picks, state.spread);
+      const link = themeLink(p, picks, reading.spread);
+      const tl = topicLine(p, reading.topic);
       return `
       <div class="row ${p.reversed ? 'reversed' : ''}" data-slot="${p.slot}">
         <img src="${thumb(p.card)}" alt="">
@@ -838,29 +906,264 @@ function openSheet() {
           <div class="k">${kwOf(p)}</div>
           <p class="d">${textOf(p)}</p>
           <p class="d muted">${positionText(p, sp)}</p>
+          ${tl ? `<p class="d topic">${topic.icon} ${topic.zh}：${tl}</p>` : ''}
           ${link ? `<p class="d link">${link}</p>` : ''}
           <span class="more">查看大圖與完整牌義 →</span>
         </div>
       </div>`;
     }).join('')}
 
-    <details open><summary>💗 感情面向</summary>
-      ${picks.map((p) => `<p><b>${posName(p)}・${p.card.zh}</b>：${p.card.love}</p>`).join('')}
-    </details>
-    <details><summary>💼 事業／學業面向</summary>
-      ${picks.map((p) => `<p><b>${posName(p)}・${p.card.zh}</b>：${p.card.work}</p>`).join('')}
-    </details>
+    ${aspectOrder.map(([f, t]) => aspect(f, t)).join('')}
 
     <h3>給你的建議</h3>
     <ul class="advice">${picks.map((p) => `<li><b>${posName(p)}・${p.card.zh}</b>：${p.card.advice}</li>`).join('')}</ul>
+
+    ${saved ? `
+    <h3>回顧筆記</h3>
+    <p class="other">過一段時間再回來，寫下事情後來的發展，看看塔羅說得準不準。</p>
+    <textarea class="note" data-id="${saved.id}" maxlength="500" placeholder="後來怎麼樣了？">${esc(saved.note || '')}</textarea>` : ''}
     <p class="closing">塔羅映照的是此刻的能量，而不是無法改變的命運。把這些訊息當作一面鏡子，最後做決定的，永遠是你自己。</p>`;
   sheet.querySelector('.sheet-body').scrollTop = 0;
   sheet.hidden = false;
 }
+
+/* ================= 占卜紀錄 ================= */
+function openHistory() {
+  sheetReading = null;
+  const list = store.get(HISTORY_KEY, []);
+  sheet.querySelector('.sheet-content').innerHTML = `
+    <h2>占卜紀錄</h2>
+    <p class="q">${list.length ? `共 ${list.length} 次占卜，只存在這台裝置的瀏覽器裡。` : '還沒有紀錄。完成一次占卜後，就會自動存在這裡。'}</p>
+    ${list.map((h) => {
+      const r = readingFromHistory(h);
+      const sp = SPREADS[r.spread];
+      if (!sp) return '';
+      const topic = TOPICS[r.topic] || TOPICS.general;
+      return `
+      <div class="hist" data-id="${h.id}">
+        <div class="hist-cards">${[...r.picks].sort((a, b) => a.slot - b.slot).slice(0, 4).map((p) => `<img class="${p.reversed ? 'rev' : ''}" src="${thumb(p.card)}" alt="">`).join('')}</div>
+        <div class="hist-info">
+          <div class="p">${fmtTime(h.t)} · ${sp.name} · ${topic.icon} ${topic.zh}</div>
+          <div class="hist-q">${h.question ? esc(h.question) : '（沒有寫下問題）'}</div>
+          <div class="k">${r.picks.map((p) => p.card.zh + (p.reversed ? '（逆）' : '')).join('、')}</div>
+          ${h.note ? `<div class="hist-note">🖊 ${esc(h.note)}</div>` : ''}
+        </div>
+        <button class="del" data-del="${h.id}" aria-label="刪除這筆紀錄">✕</button>
+      </div>`;
+    }).join('')}
+    ${list.length ? '<button class="clear" data-act="clear">清除全部紀錄</button>' : ''}`;
+  sheet.querySelector('.sheet-body').scrollTop = 0;
+  sheet.hidden = false;
+}
+
+let noteTimer;
+sheet.addEventListener('input', (e) => {
+  if (!e.target.matches('textarea.note')) return;
+  clearTimeout(noteTimer);
+  const { id } = e.target.dataset, note = e.target.value;
+  noteTimer = setTimeout(() => updateHistory(id, { note }), 400);
+});
 sheet.addEventListener('click', (e) => {
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'history') return openHistory();
+  if (act === 'share') return openShare(sheetReading);
+  if (act === 'clear') {
+    if (confirm('確定要刪除所有占卜紀錄嗎？刪除後無法復原。')) { store.set(HISTORY_KEY, []); openHistory(); }
+    return;
+  }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    store.set(HISTORY_KEY, store.get(HISTORY_KEY, []).filter((h) => h.id !== del.dataset.del));
+    return openHistory();
+  }
+  const hist = e.target.closest('.hist');
+  if (hist) {
+    const h = store.get(HISTORY_KEY, []).find((x) => x.id === hist.dataset.id);
+    if (h) openSheet(readingFromHistory(h), true);
+    return;
+  }
   const row = e.target.closest('.row img, .row .n, .row .more')?.closest('.row');
-  if (row) { sheet.hidden = true; openModal(state.picks.find((p) => p.slot === +row.dataset.slot)); return; }
+  if (row && sheetReading) {
+    sheet.hidden = true;
+    openModal(sheetReading.picks.find((p) => p.slot === +row.dataset.slot), false, sheetReading);
+    return;
+  }
   if (e.target === sheet || e.target.closest('.close')) sheet.hidden = true;
+});
+
+/* ================= 存成圖片 ================= */
+const share = $('#share');
+const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+
+function wrapText(ctx, text, maxW) {
+  const lines = [];
+  let line = '';
+  for (const ch of text) {
+    if (ctx.measureText(line + ch).width > maxW && line) { lines.push(line); line = ch; } else line += ch;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+async function renderShareImage(reading) {
+  const W = 1080, H = 1920;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  const sp = SPREADS[reading.spread];
+  const topic = TOPICS[reading.topic];
+  const picks = [...reading.picks].sort((a, b) => a.slot - b.slot);
+  const story = storyParagraphs(picks, reading.spread, sp);
+  const focus = topicReading(picks, reading.spread, sp, reading.topic);
+  const SERIF = '"Noto Serif TC", serif', DISPLAY = '"Cinzel", serif';
+
+  // 先載入畫面上會用到的字（Google Fonts 只會下載用到的字）
+  const allText = [sp.name, topic.zh, reading.question, ...story, focus?.intro || '',
+    ...picks.flatMap((p) => [p.card.zh, kwOf(p), sp.positions[p.slot].name]), '正位逆位星空塔羅牌陣的故事上的解讀「」…·'].join('');
+  try {
+    await Promise.all([document.fonts.load(`40px ${SERIF}`, allText), document.fonts.load(`600 40px ${SERIF}`, allText), document.fonts.load(`500 40px ${DISPLAY}`, 'STAR TAROT')]);
+  } catch { /* 字型載入失敗就用系統字 */ }
+
+  // 背景
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#120c33'); bg.addColorStop(0.55, '#0a0820'); bg.addColorStop(1, '#170d2a');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  [[220, 380, 520, 'rgba(120,70,190,.30)'], [880, 1300, 560, 'rgba(50,100,190,.26)']].forEach(([x, y, r, col]) => {
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  });
+  let seed = (reading.t || 1) % 2147483647 || 7;
+  const prng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 260; i++) {
+    const s = 4 + prng() * 14;
+    ctx.globalAlpha = 0.2 + prng() * 0.7;
+    ctx.drawImage(SPRITES.star, prng() * W - s / 2, prng() * H - s / 2, s, s);
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+
+  // 標題
+  ctx.textAlign = 'center';
+  const gold = ctx.createLinearGradient(300, 0, 780, 0);
+  gold.addColorStop(0, '#f8e3a1'); gold.addColorStop(0.5, '#c9a14a'); gold.addColorStop(1, '#fff1c4');
+  ctx.fillStyle = gold;
+  ctx.font = `500 54px ${DISPLAY}`;
+  ctx.letterSpacing = '12px';
+  ctx.fillText('STAR TAROT', W / 2, 120);
+  ctx.letterSpacing = '6px';
+  ctx.fillStyle = '#b8b0d0';
+  ctx.font = `30px ${SERIF}`;
+  ctx.fillText(`星空塔羅 · ${sp.name} · ${topic.zh}`, W / 2, 180);
+  ctx.letterSpacing = '0px';
+  let y = 250;
+  if (reading.question) {
+    ctx.fillStyle = '#f4ecd8';
+    ctx.font = `40px ${SERIF}`;
+    wrapText(ctx, `「${reading.question}」`, 900).slice(0, 2).forEach((l) => { ctx.fillText(l, W / 2, y); y += 58; });
+  }
+  y += 30;
+
+  // 牌
+  const imgs = await Promise.all(picks.map((p) => loadImg(thumb(p.card))));
+  let rows;
+  if (reading.spread === 'theme') rows = [[{ i: 0, w: 280 }, { i: 1, w: 214 }, { i: 2, w: 214 }, { i: 3, w: 214 }]];
+  else if (picks.length === 1) rows = [[{ i: 0, w: 400 }]];
+  else rows = [picks.slice(0, 5).map((_, i) => ({ i, w: 176 })), picks.slice(5).map((_, i) => ({ i: i + 5, w: 176 }))];
+  const gap = 26;
+  for (const row of rows) {
+    const total = row.reduce((a, b) => a + b.w, 0) + gap * (row.length - 1);
+    let x = (W - total) / 2;
+    const rowH = Math.max(...row.map((r) => r.w * CARD_RATIO));
+    for (const { i, w } of row) {
+      const h = w * CARD_RATIO, p = picks[i], top = y + (rowH - h) / 2;
+      ctx.save();
+      ctx.shadowColor = 'rgba(232,200,119,.45)'; ctx.shadowBlur = 40;
+      ctx.beginPath(); ctx.roundRect(x, top, w, h, w * 0.06);
+      ctx.fillStyle = '#e9d9b5'; ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(x, top, w, h, w * 0.06); ctx.clip();
+      if (imgs[i]) {
+        if (p.reversed) { ctx.translate(x + w / 2, top + h / 2); ctx.rotate(Math.PI); ctx.drawImage(imgs[i], -w / 2, -h / 2, w, h); } else ctx.drawImage(imgs[i], x, top, w, h);
+      }
+      ctx.restore();
+      ctx.textAlign = 'center';
+      const cx = x + w / 2;
+      ctx.fillStyle = '#e8c877';
+      ctx.font = `${w > 200 ? 26 : 22}px ${SERIF}`;
+      ctx.fillText(sp.positions[p.slot].name, cx, y + rowH + 40);
+      ctx.fillStyle = '#f4ecd8';
+      ctx.font = `600 ${w > 200 ? 30 : 24}px ${SERIF}`;
+      ctx.fillText(p.card.zh, cx, y + rowH + (w > 200 ? 80 : 72));
+      ctx.fillStyle = p.reversed ? '#ffb4b4' : '#ffe7a8';
+      ctx.font = `${w > 200 ? 24 : 20}px ${SERIF}`;
+      ctx.fillText(orientOf(p), cx, y + rowH + (w > 200 ? 114 : 100));
+      x += w + gap;
+    }
+    y += rowH + (row[0].w > 200 ? 190 : 150);
+  }
+
+  // 解讀文字
+  const textX = 90, textW = W - 180, bottom = H - 150;
+  const para = (title, text) => {
+    if (y > bottom - 120) return;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e8c877';
+    ctx.font = `600 32px ${SERIF}`;
+    ctx.fillText(`✧ ${title}`, textX, y); y += 56;
+    ctx.fillStyle = '#f4ecd8';
+    ctx.font = `30px ${SERIF}`;
+    let lines = wrapText(ctx, text, textW);
+    const room = Math.floor((bottom - y) / 50);
+    if (lines.length > room) { lines = lines.slice(0, Math.max(room, 0)); if (lines.length) lines[lines.length - 1] = lines[lines.length - 1].slice(0, -1) + '…'; }
+    lines.forEach((l) => { ctx.fillText(l, textX, y); y += 50; });
+    y += 30;
+  };
+  if (focus) para(`${topic.zh}上的解讀`, focus.intro);
+  para('牌陣的故事', story.slice(reading.spread === 'theme' ? 1 : 0).join(''));
+  if (picks.length === 1 && !focus) {
+    para('感情', picks[0].card.love);
+    para('事業／學業', picks[0].card.work);
+  }
+  const key = picks.find((q) => ['未來', '結果', '今日指引'].includes(sp.positions[q.slot].name)) || picks[picks.length - 1];
+  para('給你的建議', key.card.advice);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#8d86a8';
+  ctx.font = `24px ${SERIF}`;
+  ctx.fillText(`${reading.t ? fmtTime(reading.t) + ' · ' : ''}✦ 星空塔羅 Star Tarot ✦`, W / 2, H - 80);
+  return new Promise((res) => c.toBlob(res, 'image/png'));
+}
+
+let shareFile = null;
+async function openShare(reading) {
+  if (!reading) return;
+  share.hidden = false;
+  const img = share.querySelector('img');
+  img.removeAttribute('src');
+  share.querySelector('.share-status').textContent = '正在產生圖片…';
+  const blob = await renderShareImage(reading);
+  shareFile = new File([blob], `star-tarot-${new Date(reading.t || Date.now()).toISOString().slice(0, 10)}.png`, { type: 'image/png' });
+  if (img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+  img.src = URL.createObjectURL(blob);
+  const canShare = navigator.canShare && navigator.canShare({ files: [shareFile] });
+  share.querySelector('[data-act="native"]').hidden = !canShare;
+  share.querySelector('.share-status').textContent = canShare ? '可以直接分享，或下載到裝置。手機上也能長按圖片儲存。' : '下載後就能分享到 IG 或傳給朋友。';
+}
+share.addEventListener('click', async (e) => {
+  const act = e.target.closest('[data-act]')?.dataset.act;
+  if (act === 'native' && shareFile) {
+    try { await navigator.share({ files: [shareFile], title: '星空塔羅' }); } catch { /* 使用者取消分享 */ }
+  } else if (act === 'download' && shareFile) {
+    const a = document.createElement('a');
+    a.href = share.querySelector('img').src;
+    a.download = shareFile.name;
+    a.click();
+  } else if (e.target === share || e.target.closest('.close')) {
+    share.hidden = true;
+  }
 });
 
 /* ================= 牌卡畫廊 ================= */
@@ -926,7 +1229,21 @@ const gallery = (() => {
 /* ================= 事件 ================= */
 $('#shuffleBtn').addEventListener('click', startShuffle);
 $('#question').addEventListener('keydown', (e) => { if (e.key === 'Enter') startShuffle(); });
-$('#readingBtn').addEventListener('click', openSheet);
+$('#readingBtn').addEventListener('click', () => openSheet());
+$('#shareBtn').addEventListener('click', () => openShare(currentReading()));
+$('#historyBtn').addEventListener('click', openHistory);
+function setTopic(key) {
+  state.topic = TOPICS[key] ? key : 'general';
+  document.querySelectorAll('#topics button').forEach((b) => b.classList.toggle('on', b.dataset.topic === state.topic));
+}
+$('#topics').innerHTML = Object.entries(TOPICS).map(([k, t]) => `<button data-topic="${k}">${t.icon} ${t.zh}</button>`).join('');
+$('#topics').addEventListener('click', (e) => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  setTopic(b.dataset.topic);
+  store.set('starTarot.topic', state.topic);
+});
+setTopic(store.get('starTarot.topic', 'general'));
 $('#againBtn').addEventListener('click', () => resetReading(false));
 $('#galleryBtn').addEventListener('click', () => (gallery.isOpen ? gallery.close() : gallery.open()));
 $('#soundBtn').addEventListener('click', (e) => {
@@ -944,7 +1261,7 @@ $('#spreadPicker').addEventListener('click', (e) => {
   else if (wasActive) { renderSlots(); dealFan(true); updateHint(); }
 });
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeModal(); sheet.hidden = true; closeTooltip(); }
+  if (e.key === 'Escape') { closeModal(); sheet.hidden = true; share.hidden = true; closeTooltip(); }
 });
 
 // 搖一搖洗牌

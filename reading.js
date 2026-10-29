@@ -124,3 +124,43 @@ function themeLink(p, picks, spreadKey) {
   const rel = relationOf(T, p);
   return `與主題牌「${T.card.zh}」：${rel.text}${rel.notes.join('')}`;
 }
+
+// ---------- 問題分類 ----------
+const TOPICS = {
+  general: { zh: '綜合', icon: '✦' },
+  love: { zh: '感情', icon: '💗', field: 'love' },
+  career: { zh: '事業', icon: '💼', field: 'work' },
+  study: { zh: '學業', icon: '📚', field: 'work' },
+  self: { zh: '自我成長', icon: '🌱', field: 'advice' },
+};
+
+function topicLine(p, topic) {
+  const t = TOPICS[topic];
+  if (!t.field) return '';
+  const caveat = p.reversed ? '（逆位：這股能量目前受阻，需要多加留意）' : '';
+  return `${p.card[t.field]}${caveat}`;
+}
+
+// 針對問題分類的解讀：開頭一句總評，加上每張牌在這個面向上的意思
+function topicReading(picks, spreadKey, spread, topic) {
+  const t = TOPICS[topic];
+  if (!t.field) return null;
+  const at = (name) => picks.find((p) => spread.positions[p.slot].name === name);
+  const last = at('未來') || at('結果') || picks[picks.length - 1];
+  let intro;
+  if (spreadKey === 'theme') {
+    const T = at('主題');
+    intro = `主題牌「${T.card.zh}」為你的${t.zh}定調：${T.card[t.field]}`;
+  } else if (picks.length === 1) {
+    intro = `今天在${t.zh}上的指引來自「${last.card.zh}」。`;
+  } else {
+    intro = `以「${at('現況').card.zh}」為核心，來看看你在${t.zh}上的狀況。`;
+  }
+  if (picks.length > 1) {
+    intro += last.reversed
+      ? `「${spread.positions[last.slot].name}」的${last.card.zh}是逆位，${t.zh}上目前的方向需要調整，多一點耐心與溝通，局面仍有轉圜的空間。`
+      : `「${spread.positions[last.slot].name}」的${last.card.zh}是正位，整體來看${t.zh}的走向偏向正面。`;
+  }
+  const items = picks.map((p) => ({ label: `${spread.positions[p.slot].name}・${p.card.zh}`, text: topicLine(p, topic) }));
+  return { intro, items };
+}

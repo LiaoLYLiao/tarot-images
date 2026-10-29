@@ -27,12 +27,14 @@
       <button data-spread="theme" class="on">一大三小</button>
       <button data-spread="celtic">凱爾特十字</button>
     </div>
+    <button class="icon" id="historyBtn" title="占卜紀錄">📖</button>
     <button class="icon" id="galleryBtn" title="牌卡畫廊">🃏</button>
     <button class="icon" id="soundBtn" title="音效">🔊</button>
   </nav>
 </header>
 
 <div id="intro">
+  <div id="topics" class="chips" aria-label="問題分類"></div>
   <input id="question" maxlength="60" placeholder="在心中默念你的問題（可不填）" autocomplete="off">
   <button class="primary" id="shuffleBtn">✦ 洗牌</button>
   <p class="sub">點擊牌堆或按下洗牌 · 手機也可以搖一搖</p>
@@ -42,6 +44,7 @@
 
 <div id="actions" hidden>
   <button class="primary" id="readingBtn">📜 完整解讀</button>
+  <button id="shareBtn">📤 存成圖片</button>
   <button id="againBtn">↻ 再抽一次</button>
 </div>
 
@@ -59,6 +62,18 @@
   <div class="sheet-body">
     <button class="close" aria-label="關閉">✕</button>
     <div class="sheet-content"></div>
+  </div>
+</div>
+
+<div id="share" hidden>
+  <div class="share-body">
+    <button class="close" aria-label="關閉">✕</button>
+    <img alt="占卜結果圖片">
+    <p class="share-status"></p>
+    <div class="share-actions">
+      <button class="primary" data-act="native" hidden>分享</button>
+      <button data-act="download">⬇ 下載圖片</button>
+    </div>
   </div>
 </div>
 

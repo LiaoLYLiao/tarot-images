@@ -23,13 +23,15 @@ const thumb = (card) => `thumbs/${card.file}.jpg`;
 const full = (card) => `${card.file}.jpeg`;
 
 const state = {
-  spread: 'three',
+  spread: 'theme',
   phase: 'idle', // idle | shuffling | picking | reading
   deck: [], // 洗好的牌：{ card, reversed }
   picks: [], // { card, reversed, el, slot }
   revealed: 0,
   els: [],
   layout: [],
+  fanN: 0,
+  dealing: false,
   muted: false,
 };
 
@@ -285,8 +287,7 @@ function stackPos(i) {
   return { x: innerWidth / 2, y: innerHeight * 0.42 - i * 0.25, w, h: w * CARD_RATIO, rot: 0 };
 }
 
-function fanGeom() {
-  const n = CARDS.length;
+function fanGeom(n = state.fanN || CARDS.length) {
   const fw = clamp(innerWidth * 0.06, 40, 78), fh = fw * CARD_RATIO;
   const half = Math.min(innerWidth * 0.45 - fw / 2, 700);
   const sag = Math.min(110, half * 0.42);
@@ -297,7 +298,7 @@ function fanGeom() {
     n, fw, fh, theta, R, cx: innerWidth / 2, cy: topY + R,
     top: topY - fh / 2,
     pos(k) {
-      const a = -theta + (2 * theta * k) / (n - 1);
+      const a = n > 1 ? -theta + (2 * theta * k) / (n - 1) : 0;
       return { x: this.cx + R * Math.sin(a), y: this.cy - R * Math.cos(a), w: fw, h: fh, rot: a / DEG };
     },
   };
@@ -309,12 +310,10 @@ function spreadArea() {
   return { x: 16, y: top, w: innerWidth - 32, h: Math.max(120, bottom - top) };
 }
 
-function computeLayout() {
-  const positions = SPREADS[state.spread].positions;
-  const area = spreadArea();
+function fitPositions(pts, area) {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const p of positions) {
-    const hx = p.rot ? CARD_RATIO / 2 : 0.5, hy = p.rot ? 0.5 / CARD_RATIO : 0.5;
+  for (const p of pts) {
+    const hx = (p.rot ? CARD_RATIO / 2 : 0.5) * p.s, hy = (p.rot ? 0.5 / CARD_RATIO : 0.5) * p.s;
     minX = Math.min(minX, p.x - hx); maxX = Math.max(maxX, p.x + hx);
     minY = Math.min(minY, p.y - hy); maxY = Math.max(maxY, p.y + hy);
   }
@@ -323,7 +322,19 @@ function computeLayout() {
   const H = W * CARD_RATIO;
   const cx = area.x + area.w / 2 - ((minX + maxX) / 2) * W;
   const cy = area.y + pad + (area.h - pad) / 2 - ((minY + maxY) / 2) * H;
-  state.layout = positions.map((p) => ({ x: cx + p.x * W, y: cy + p.y * H, w: W, h: H, rot: p.rot || 0 }));
+  return { W, layout: pts.map((p) => ({ x: cx + p.x * W, y: cy + p.y * H, w: W * p.s, h: H * p.s, rot: p.rot || 0 })) };
+}
+
+function computeLayout() {
+  const positions = SPREADS[state.spread].positions;
+  const area = spreadArea();
+  const tall = fitPositions(positions.map((p) => ({ x: p.x, y: p.y, s: p.s || 1, rot: p.rot })), area);
+  let best = tall;
+  if (positions[0].wx !== undefined) {
+    const wide = fitPositions(positions.map((p) => ({ x: p.wx, y: p.wy, s: p.s || 1, rot: p.rot })), area);
+    if (wide.W > tall.W) best = wide;
+  }
+  state.layout = best.layout;
   return state.layout;
 }
 
@@ -371,7 +382,8 @@ function updateHint() {
   const positions = SPREADS[state.spread].positions;
   if (state.phase === 'picking' && state.picks.length < positions.length) {
     const p = positions[state.picks.length];
-    hint.textContent = `憑直覺選出第 ${state.picks.length + 1} 張牌 · ${p.name}`;
+    const from = p.pool === 'major' ? `從 ${state.fanN} 張大阿爾克那中，` : p.pool === 'minor' ? `從 ${state.fanN} 張小阿爾克那中，` : '';
+    hint.textContent = `${from}憑直覺選出第 ${state.picks.length + 1} 張牌 · ${p.name}`;
     hint.style.top = `${fanGeom().top - 38}px`;
     hint.style.opacity = 1;
   } else if (state.phase === 'shuffling') {
@@ -440,7 +452,12 @@ async function startShuffle() {
   renderSlots();
 
   const els = state.els;
-  els.forEach((el) => { el.classList.remove('fan', 'hot'); el.classList.add('stack'); });
+  els.forEach((el) => {
+    el.classList.remove('fan', 'hot');
+    el.classList.add('stack');
+    el.style.opacity = 1;
+    el.style.pointerEvents = '';
+  });
   els.forEach((el, i) => { el.style.transitionDuration = '.5s'; el.style.transitionDelay = `${(els.length - i) * 3}ms`; place(el, stackPos(i)); });
   updateHint();
   await sleep(600);
@@ -462,32 +479,67 @@ async function startShuffle() {
     await sleep(420);
   }
 
-  const fan = fanGeom();
-  state.els.forEach((el, k) => {
-    el.dataset.k = k;
-    el.classList.remove('stack');
-    el.classList.add('fan');
-    el.style.transitionDuration = '.8s';
-    el.style.transitionDelay = `${k * 9}ms`;
-    place(el, fan.pos(k));
-  });
-  sound.whoosh();
-  for (let k = 0; k < fan.n; k += 3) {
-    setTimeout(() => { const p = fan.pos(k); fx.sparkle(p.x, p.y - fan.fh / 2, 2); }, 200 + k * 9);
-  }
-  await sleep(800 + fan.n * 9);
-  state.els.forEach((el) => { el.style.transitionDuration = '.3s'; el.style.transitionDelay = '0ms'; });
+  state.els.forEach((el, k) => (el.dataset.k = k));
+  await sleep(dealFan(true));
   state.phase = 'picking';
   renderSlots();
   updateHint();
 }
 
+const poolOf = (slot) => SPREADS[state.spread].positions[slot]?.pool;
+const inPool = (card, pool) => !pool || (pool === 'major') === card.major;
+
+// 依下一個牌位需要的牌池（大牌／小牌／全部）展開扇形，其餘的牌收到扇形下方藏起來。
+// 回傳動畫所需的毫秒數。
+function dealFan(animate) {
+  const pool = poolOf(state.picks.length);
+  const fanEls = [], restEls = [];
+  state.els.forEach((el) => {
+    if (el.classList.contains('flying') || el.classList.contains('placed')) return;
+    (inPool(state.deck[+el.dataset.k].card, pool) ? fanEls : restEls).push(el);
+  });
+  state.fanN = fanEls.length;
+  const fan = fanGeom();
+  const hidden = { x: fan.cx, y: fan.top + fan.fh, w: fan.fw, h: fan.fh, rot: 0 };
+  restEls.forEach((el) => {
+    el.classList.remove('fan', 'hot', 'stack');
+    el.style.transitionDuration = animate ? '.6s' : '0s';
+    el.style.transitionDelay = '0ms';
+    el.style.opacity = 0;
+    el.style.pointerEvents = 'none';
+    place(el, hidden);
+  });
+  fanEls.forEach((el, f) => {
+    el.dataset.f = f;
+    el.classList.remove('stack');
+    el.classList.add('fan');
+    el.style.opacity = 1;
+    el.style.pointerEvents = '';
+    el.style.transitionDuration = animate ? '.8s' : '.3s';
+    el.style.transitionDelay = animate ? `${f * 9}ms` : '0ms';
+    place(el, fan.pos(f));
+  });
+  if (!animate) return 0;
+  sound.whoosh();
+  for (let f = 0; f < fan.n; f += 3) {
+    setTimeout(() => { const p = fan.pos(f); fx.sparkle(p.x, p.y - fan.fh / 2, 2); }, 200 + f * 9);
+  }
+  const ms = 800 + fan.n * 9;
+  setTimeout(() => fanEls.forEach((el) => {
+    if (!el.classList.contains('fan')) return;
+    el.style.transitionDuration = '.3s';
+    el.style.transitionDelay = '0ms';
+  }), ms);
+  return ms;
+}
+
 /* ================= 抽牌 ================= */
 async function pick(el) {
   const positions = SPREADS[state.spread].positions;
-  if (state.picks.length >= positions.length) return;
+  if (state.dealing || state.picks.length >= positions.length) return;
   const slot = state.picks.length;
   const { card, reversed } = state.deck[+el.dataset.k];
+  if (!inPool(card, poolOf(slot))) return;
   const p = { card, reversed, el, slot };
   state.picks.push(p);
 
@@ -502,6 +554,16 @@ async function pick(el) {
   sound.whoosh();
   renderSlots();
   updateHint();
+  if (slot + 1 < positions.length && poolOf(slot + 1) !== poolOf(slot)) {
+    // 換牌池：剩下的牌收起來，換另一組牌展開
+    state.dealing = true;
+    $('#hint').style.opacity = 0;
+    setTimeout(async () => {
+      await sleep(dealFan(true));
+      state.dealing = false;
+      updateHint();
+    }, 650);
+  }
 
   const t0 = performance.now();
   (function trail() {
@@ -538,7 +600,7 @@ function enterReading() {
     el.style.pointerEvents = 'none';
     el.style.transitionDuration = '.9s';
     el.style.transitionDelay = `${Math.abs(i - fan.n / 2) * 4}ms`;
-    const p = fan.pos(+el.dataset.k);
+    const p = fan.pos(+el.dataset.f);
     place(el, { ...p, y: p.y + innerHeight * 0.5 });
     el.style.opacity = 0;
   });
@@ -572,6 +634,7 @@ async function resetReading(reshuffle) {
   state.phase = 'idle';
   state.picks = [];
   state.revealed = 0;
+  state.fanN = 0;
   renderSlots();
   updateHint();
   await sleep(450);
@@ -625,12 +688,17 @@ function drawLines(animate) {
     const A = state.layout[a], B = state.layout[b];
     if (Math.hypot(A.x - B.x, A.y - B.y) < 1) return;
     // 找出兩張牌之間沒被牌蓋住的那一段
-    let best = null, run = null;
+    // 如果線會穿過第三張牌（出現不只一段空隙）就不畫
+    let best = null, run = null, runs = 0;
     for (let i = 0; i <= 200; i++) {
       const t = i / 200, x = A.x + (B.x - A.x) * t, y = A.y + (B.y - A.y) * t;
-      if (!covered(x, y)) { run = run ? [run[0], t] : [t, t]; if (!best || run[1] - run[0] > best[1] - best[0]) best = run; } else run = null;
+      if (!covered(x, y)) {
+        if (!run) runs++;
+        run = run ? [run[0], t] : [t, t];
+        if (!best || run[1] - run[0] > best[1] - best[0]) best = run;
+      } else run = null;
     }
-    if (!best || best[1] - best[0] < 0.01) return;
+    if (runs !== 1 || best[1] - best[0] < 0.01) return;
     const P = (t) => [A.x + (B.x - A.x) * t, A.y + (B.y - A.y) * t];
     const [x1, y1] = P(best[0]), [x2, y2] = P(best[1]), [mx, my] = P((best[0] + best[1]) / 2);
     const len = Math.hypot(x2 - x1, y2 - y1);
@@ -703,19 +771,34 @@ function openModal(p, standalone) {
       const r = relationOf(p, other);
       return `<div><b>與「${sp.positions[other.slot].name}」${other.card.zh}</b>：${r.text}${r.notes.map((n) => ` ${n}`).join('')}</div>`;
     }).join('');
-    if (items) rel = `<div class="rel">${items}</div>`;
+    if (items) rel = `<section><h4>與其他牌的關係</h4><div class="rel">${items}</div></section>`;
   }
-  const kwMain = standalone ? card.up : reversed ? card.rev : card.up;
-  const kwOther = standalone ? card.rev : reversed ? card.up : card.rev;
+  const aspects = `
+    <div class="aspects">
+      <div><h4>💗 感情</h4><p>${card.love}</p></div>
+      <div><h4>💼 事業／學業</h4><p>${card.work}</p></div>
+      <div><h4>✦ 建議</h4><p>${card.advice}</p></div>
+    </div>
+    ${!standalone && reversed ? '<p class="other">逆位時，以上面向的能量會受阻或向內收，請特別留意其中提醒的部分。</p>' : ''}`;
+  const body = standalone
+    ? `<p class="kw"><small>正位關鍵字</small>${card.up}</p>
+       <section><h4>正位牌義</h4><p>${card.upText}</p></section>
+       <section><h4>逆位牌義</h4><p><span class="rev-kw">${card.rev}</span><br>${card.revText}</p></section>
+       ${aspects}`
+    : `<p class="kw"><small>此刻的關鍵字</small>${kwOf(p)}</p>
+       <section><h4>牌義</h4><p>${textOf(p)}</p></section>
+       <section><h4>在「${pos.name}」的位置</h4><p>${positionText(p, sp)}</p></section>
+       ${aspects}
+       ${rel}
+       <p class="other">${reversed ? '若轉為正位' : '若為逆位'}：${reversed ? card.up : card.rev}</p>`;
   modal.querySelector('.modal-text').innerHTML = `
     ${pos ? `<div class="pos">${pos.name} · ${pos.desc}</div>` : `<div class="pos">${card.major ? '大阿爾克那' : '小阿爾克那'}</div>`}
     <h2>${card.zh}</h2>
     <div class="en">${card.major ? card.number + ' · ' : ''}${card.en}</div>
-    ${standalone ? '' : `<span class="tag ${reversed ? 'rev' : 'up'}">${reversed ? '逆位' : '正位'}</span>`}
+    ${standalone ? '' : `<span class="tag ${reversed ? 'rev' : 'up'}">${orientOf(p)}</span>`}
     <span class="tag" style="color:${el.color}">${el.zh}元素 · ${el.desc}</span>
-    <p class="kw"><small>${standalone ? '正位' : '此刻的訊息'}</small>${kwMain}</p>
-    <p class="other">${standalone ? '逆位' : reversed ? '若轉為正位' : '若為逆位'}：${kwOther}</p>
-    ${rel}`;
+    ${body}`;
+  modal.querySelector('.modal-text').scrollTop = 0;
   modal.hidden = false;
 }
 function closeModal() { modal.hidden = true; }
@@ -728,35 +811,54 @@ function openSheet() {
   const picks = [...state.picks].sort((a, b) => a.slot - b.slot);
   const counts = {};
   picks.forEach((p) => (counts[p.card.element] = (counts[p.card.element] || 0) + 1));
-  const majors = picks.filter((p) => p.card.major).length;
-  const revs = picks.filter((p) => p.reversed).length;
-  const notes = [];
-  if (picks.length > 1) {
-    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    if (top[1] > 1) notes.push(`主導元素是「${ELEMENTS[top[0]].zh}」，這次的關鍵在於${ELEMENTS[top[0]].desc}。`);
-    if (majors / picks.length >= 0.5) notes.push('大阿爾克那佔了多數，這件事牽動著深層的人生課題。');
-    else if (majors === 0) notes.push('全是小阿爾克那，這是日常層面的事，主導權在你自己手上。');
-    if (revs / picks.length > 0.5) notes.push('逆位偏多，有些能量卡住了，先照顧好自己的內在。');
-  }
+  const notes = overviewNotes(picks, state.spread);
+  const story = storyParagraphs(picks, state.spread, sp);
   const q = $('#question').value.trim();
+  const posName = (p) => sp.positions[p.slot].name;
   sheet.querySelector('.sheet-content').innerHTML = `
     <h2>${sp.name}</h2>
     <p class="q">${q ? `「${q}」` : '你的牌陣'}</p>
+
+    <h3>整體能量</h3>
     <div class="elements">${Object.entries(counts).map(([k, v]) => `<span style="color:${ELEMENTS[k].color}">${ELEMENTS[k].zh} × ${v}</span>`).join('')}</div>
-    ${notes.map((n) => `<p class="other">✦ ${n}</p>`).join('')}
-    ${picks.map((p) => `
+    ${notes.map((n) => `<p class="note-line">✦ ${n}</p>`).join('')}
+
+    <h3>牌陣的故事</h3>
+    ${story.map((t) => `<p class="story">${t}</p>`).join('')}
+
+    <h3>逐張解讀</h3>
+    ${picks.map((p) => {
+      const link = themeLink(p, picks, state.spread);
+      return `
       <div class="row ${p.reversed ? 'reversed' : ''}" data-slot="${p.slot}">
         <img src="${thumb(p.card)}" alt="">
         <div>
-          <div class="p">${sp.positions[p.slot].name} · ${sp.positions[p.slot].desc}</div>
-          <div class="n">${p.card.zh}<em style="color:${p.reversed ? '#ffb4b4' : '#ffe7a8'}">${p.reversed ? '逆位' : '正位'}</em></div>
-          <div class="k">${p.reversed ? p.card.rev : p.card.up}</div>
+          <div class="p">${posName(p)} · ${sp.positions[p.slot].desc}</div>
+          <div class="n">${p.card.zh}<em style="color:${p.reversed ? '#ffb4b4' : '#ffe7a8'}">${orientOf(p)}</em></div>
+          <div class="k">${kwOf(p)}</div>
+          <p class="d">${textOf(p)}</p>
+          <p class="d muted">${positionText(p, sp)}</p>
+          ${link ? `<p class="d link">${link}</p>` : ''}
+          <span class="more">查看大圖與完整牌義 →</span>
         </div>
-      </div>`).join('')}`;
+      </div>`;
+    }).join('')}
+
+    <details open><summary>💗 感情面向</summary>
+      ${picks.map((p) => `<p><b>${posName(p)}・${p.card.zh}</b>：${p.card.love}</p>`).join('')}
+    </details>
+    <details><summary>💼 事業／學業面向</summary>
+      ${picks.map((p) => `<p><b>${posName(p)}・${p.card.zh}</b>：${p.card.work}</p>`).join('')}
+    </details>
+
+    <h3>給你的建議</h3>
+    <ul class="advice">${picks.map((p) => `<li><b>${posName(p)}・${p.card.zh}</b>：${p.card.advice}</li>`).join('')}</ul>
+    <p class="closing">塔羅映照的是此刻的能量，而不是無法改變的命運。把這些訊息當作一面鏡子，最後做決定的，永遠是你自己。</p>`;
+  sheet.querySelector('.sheet-body').scrollTop = 0;
   sheet.hidden = false;
 }
 sheet.addEventListener('click', (e) => {
-  const row = e.target.closest('.row');
+  const row = e.target.closest('.row img, .row .n, .row .more')?.closest('.row');
   if (row) { sheet.hidden = true; openModal(state.picks.find((p) => p.slot === +row.dataset.slot)); return; }
   if (e.target === sheet || e.target.closest('.close')) sheet.hidden = true;
 });
@@ -833,13 +935,13 @@ $('#soundBtn').addEventListener('click', (e) => {
 });
 $('#spreadPicker').addEventListener('click', (e) => {
   const b = e.target.closest('button');
-  if (!b || state.phase === 'shuffling' || b.dataset.spread === state.spread) return;
+  if (!b || state.phase === 'shuffling' || state.dealing || b.dataset.spread === state.spread) return;
   if (state.picks.some((p) => p.el.classList.contains('flying') || !p.el.classList.contains('flipped'))) return;
   document.querySelectorAll('#spreadPicker button').forEach((x) => x.classList.toggle('on', x === b));
   const wasActive = state.phase !== 'idle';
   state.spread = b.dataset.spread;
   if (state.picks.length || state.phase === 'reading') resetReading(false);
-  else if (wasActive) { renderSlots(); updateHint(); }
+  else if (wasActive) { renderSlots(); dealFan(true); updateHint(); }
 });
 addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeModal(); sheet.hidden = true; closeTooltip(); }
@@ -872,10 +974,7 @@ addEventListener('resize', () => {
     fx.resize();
     gallery.resize();
     if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
-    if (state.phase === 'picking') {
-      const fan = fanGeom();
-      state.els.forEach((el) => { if (el.classList.contains('fan')) place(el, fan.pos(+el.dataset.k)); });
-    }
+    if (state.phase === 'picking' && !state.dealing) dealFan(false);
     if (state.phase !== 'shuffling') relayoutPlaced();
     updateHint();
     drawLines(false);

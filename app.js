@@ -446,6 +446,8 @@ async function askMotion() {
 async function startShuffle() {
   if (state.phase === 'shuffling') return;
   if (state.phase === 'reading' || state.picks.length) return resetReading(true);
+  const today = state.spread === 'one' && todayDaily();
+  if (today) return openSheet(readingFromHistory(today), 'calendar');
   sound.unlock();
   askMotion();
   state.phase = 'shuffling';
@@ -610,7 +612,8 @@ function enterReading() {
     place(el, { ...p, y: p.y + innerHeight * 0.5 });
     el.style.opacity = 0;
   });
-  setTimeout(() => state.els.filter((el) => !el.classList.contains('placed')).forEach((el) => el.remove()), 1600);
+  const leftovers = state.els.filter((el) => !el.classList.contains('placed'));
+  setTimeout(() => leftovers.forEach((el) => el.remove()), 1600);
   relayoutPlaced();
   $('#actions').hidden = false;
   updateHint();
@@ -650,6 +653,7 @@ async function resetReading(reshuffle) {
     startShuffle();
   } else {
     $('#intro').classList.remove('gone');
+    updateIntro();
   }
 }
 
@@ -855,7 +859,7 @@ modal.addEventListener('click', (e) => { if (e.target === modal || e.target.clos
 const sheet = $('#sheet');
 let sheetReading = null;
 
-function openSheet(reading = currentReading(), fromHistory = false) {
+function openSheet(reading = currentReading(), back = null) {
   sheetReading = reading;
   const sp = SPREADS[reading.spread];
   const topic = TOPICS[reading.topic];
@@ -875,11 +879,11 @@ function openSheet(reading = currentReading(), fromHistory = false) {
   const saved = reading.id && store.get(HISTORY_KEY, []).find((h) => h.id === reading.id);
 
   sheet.querySelector('.sheet-content').innerHTML = `
-    ${fromHistory ? '<button class="back-btn" data-act="history">← 返回紀錄</button>' : ''}
+    ${back ? `<button class="back-btn" data-act="${back}">← 返回${back === 'calendar' ? '日曆' : '紀錄'}</button>` : ''}
     <h2>${sp.name}</h2>
     <p class="q">${reading.question ? `「${esc(reading.question)}」` : '你的牌陣'}</p>
     <p class="meta"><span>${topic.icon} ${topic.zh}</span>${reading.t ? `<span>${fmtTime(reading.t)}</span>` : ''}</p>
-    <div class="sheet-tools"><button data-act="share">📤 存成圖片</button></div>
+    <div class="sheet-tools"><button data-act="share">📤 存成圖片</button>${reading.spread === 'one' && back !== 'calendar' ? '<button data-act="calendar">📅 每日一牌日曆</button>' : ''}</div>
 
     <h3>整體能量</h3>
     <div class="elements">${Object.entries(counts).map(([k, v]) => `<span style="color:${ELEMENTS[k].color}">${ELEMENTS[k].zh} × ${v}</span>`).join('')}</div>
@@ -932,6 +936,7 @@ function openHistory() {
   sheetReading = null;
   const list = store.get(HISTORY_KEY, []);
   sheet.querySelector('.sheet-content').innerHTML = `
+    ${tabsHTML('history')}
     <h2>占卜紀錄</h2>
     <p class="q">${list.length ? `共 ${list.length} 次占卜，只存在這台裝置的瀏覽器裡。` : '還沒有紀錄。完成一次占卜後，就會自動存在這裡。'}</p>
     ${list.map((h) => {
@@ -956,6 +961,113 @@ function openHistory() {
   sheet.hidden = false;
 }
 
+/* ================= 每日一牌日曆 ================= */
+const dayKey = (t) => {
+  const d = new Date(t), z = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
+};
+// 每天的第一張每日一牌，以日期為 key
+function dailyByDay() {
+  const map = {};
+  for (const h of store.get(HISTORY_KEY, [])) {
+    if (h.spread !== 'one') continue;
+    const k = dayKey(h.t);
+    if (!map[k] || h.t < map[k].t) map[k] = h;
+  }
+  return map;
+}
+const todayDaily = () => dailyByDay()[dayKey(Date.now())];
+
+function updateIntro() {
+  const done = state.spread === 'one' && todayDaily();
+  $('#shuffleBtn').textContent = done ? '✦ 查看今天的牌' : '✦ 洗牌';
+  $('#question').hidden = !!done;
+  $('#topics').hidden = !!done;
+  $('#intro .sub').textContent = done ? '每日一牌一天只能抽一張，明天再來吧 · 可以在 📖 裡看日曆' : '點擊牌堆或按下洗牌 · 手機也可以搖一搖';
+}
+
+const tabsHTML = (on) => `<div class="tabs">
+  <button data-act="history" class="${on === 'history' ? 'on' : ''}">📖 占卜紀錄</button>
+  <button data-act="calendar" class="${on === 'calendar' ? 'on' : ''}">📅 每日一牌日曆</button></div>`;
+
+function streakDays(map) {
+  const d = new Date();
+  if (!map[dayKey(d)]) d.setDate(d.getDate() - 1); // 今天還沒抽，就從昨天算起
+  let n = 0;
+  while (map[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+function monthNotes(entries) {
+  const picks = entries.map((h) => readingFromHistory(h).picks[0]).filter(Boolean);
+  if (!picks.length) return [];
+  const notes = [];
+  const count = (arr) => arr.reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {});
+  const top = (m) => Object.entries(m).sort((a, b) => b[1] - a[1])[0];
+  const [el, elN] = top(count(picks.map((p) => p.card.element)));
+  if (picks.length >= 3 && elN > 1) notes.push(`這個月以「${ELEMENTS[el].zh}」元素為主（${elN} 次），${ELEMENTS[el].desc}是你的主旋律。`);
+  const minors = picks.filter((p) => !p.card.major);
+  if (minors.length >= 2) {
+    const [suit, n] = top(count(minors.map((p) => p.card.suit)));
+    if (n > 1) notes.push(`最常出現的花色是${SUIT_DOMAIN[suit].zh}（${n} 次），生活重心落在${SUIT_DOMAIN[suit].area}。`);
+  }
+  const majors = picks.length - minors.length;
+  if (majors) notes.push(`抽到 ${majors} 次大阿爾克那，${majors / picks.length >= 0.4 ? '這個月有不少深層的人生課題在發生。' : '偶爾有重要的訊息提醒你。'}`);
+  const revs = picks.filter((p) => p.reversed).length;
+  notes.push(revs ? `逆位出現 ${revs} 次，佔 ${Math.round((revs / picks.length) * 100)}%。${revs / picks.length > 0.5 ? '能量常常卡住，記得多照顧自己。' : ''}` : '這個月全部都是正位，能量很順暢！');
+  Object.entries(count(picks.map((p) => p.card.zh))).filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1]).slice(0, 3)
+    .forEach(([name, n]) => notes.push(`「${name}」出現了 ${n} 次，它想告訴你的事值得多想一想。`));
+  return notes;
+}
+
+let calMonth = null;
+function openCalendar(step = 0) {
+  sheetReading = null;
+  const now = new Date();
+  if (!calMonth || step === 0) calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  else calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + step, 1);
+  const y = calMonth.getFullYear(), m = calMonth.getMonth();
+  const map = dailyByDay();
+  const days = new Date(y, m + 1, 0).getDate();
+  const todayK = dayKey(now);
+  const isThisMonth = y === now.getFullYear() && m === now.getMonth();
+  const entries = [];
+  let cells = '<div class="cal-dow">日</div><div class="cal-dow">一</div><div class="cal-dow">二</div><div class="cal-dow">三</div><div class="cal-dow">四</div><div class="cal-dow">五</div><div class="cal-dow">六</div>';
+  cells += '<div></div>'.repeat(new Date(y, m, 1).getDay());
+  for (let d = 1; d <= days; d++) {
+    const k = dayKey(new Date(y, m, d));
+    const h = map[k];
+    const p = h && readingFromHistory(h).picks[0];
+    if (p) entries.push(h);
+    cells += `<div class="cal-day ${k === todayK ? 'today' : ''} ${p ? 'has' : ''}" ${p ? `data-id="${h.id}" title="${p.card.zh}${p.reversed ? '（逆位）' : ''}"` : ''}>
+      <span>${d}</span>${p ? `<img class="${p.reversed ? 'rev' : ''}" src="${thumb(p.card)}" alt="${p.card.zh}">` : ''}</div>`;
+  }
+  const elems = {};
+  entries.forEach((h) => { const c = readingFromHistory(h).picks[0]?.card; if (c) elems[c.element] = (elems[c.element] || 0) + 1; });
+  const total = isThisMonth ? now.getDate() : days;
+  const canNext = y < now.getFullYear() || (y === now.getFullYear() && m < now.getMonth());
+  sheet.querySelector('.sheet-content').innerHTML = `
+    ${tabsHTML('calendar')}
+    <div class="cal-head">
+      <button data-act="prev-month" aria-label="上個月">‹</button>
+      <h2>${y} 年 ${m + 1} 月</h2>
+      <button data-act="next-month" aria-label="下個月" ${canNext ? '' : 'disabled'}>›</button>
+    </div>
+    <div class="cal-stats">
+      <div><b>${entries.length}</b><span>本月抽牌天數${total ? ` / ${total}` : ''}</span></div>
+      <div><b>${streakDays(map)}</b><span>目前連續天數</span></div>
+    </div>
+    ${isThisMonth && !map[todayK] ? '<p class="cal-cta">今天還沒抽牌，切換到「每日一牌」來抽今天的指引吧 ✦</p>' : ''}
+    <div class="cal-grid">${cells}</div>
+    ${entries.length ? `
+    <h3>本月能量</h3>
+    <div class="elements">${Object.entries(elems).map(([k, v]) => `<span style="color:${ELEMENTS[k].color}">${ELEMENTS[k].zh} × ${v}</span>`).join('')}</div>
+    ${monthNotes(entries).map((n) => `<p class="note-line">✦ ${n}</p>`).join('')}` : '<p class="other">這個月還沒有每日一牌的紀錄。</p>'}`;
+  sheet.querySelector('.sheet-body').scrollTop = 0;
+  sheet.hidden = false;
+}
+
 let noteTimer;
 sheet.addEventListener('input', (e) => {
   if (!e.target.matches('textarea.note')) return;
@@ -966,6 +1078,14 @@ sheet.addEventListener('input', (e) => {
 sheet.addEventListener('click', (e) => {
   const act = e.target.closest('[data-act]')?.dataset.act;
   if (act === 'history') return openHistory();
+  if (act === 'calendar') return openCalendar();
+  if (act === 'prev-month' || act === 'next-month') return openCalendar(act === 'prev-month' ? -1 : 1);
+  const day = e.target.closest('.cal-day[data-id]');
+  if (day) {
+    const h = store.get(HISTORY_KEY, []).find((x) => x.id === day.dataset.id);
+    if (h) openSheet(readingFromHistory(h), 'calendar');
+    return;
+  }
   if (act === 'share') return openShare(sheetReading);
   if (act === 'clear') {
     if (confirm('確定要刪除所有占卜紀錄嗎？刪除後無法復原。')) { store.set(HISTORY_KEY, []); openHistory(); }
@@ -979,7 +1099,7 @@ sheet.addEventListener('click', (e) => {
   const hist = e.target.closest('.hist');
   if (hist) {
     const h = store.get(HISTORY_KEY, []).find((x) => x.id === hist.dataset.id);
-    if (h) openSheet(readingFromHistory(h), true);
+    if (h) openSheet(readingFromHistory(h), 'history');
     return;
   }
   const row = e.target.closest('.row img, .row .n, .row .more')?.closest('.row');
@@ -1257,8 +1377,10 @@ $('#spreadPicker').addEventListener('click', (e) => {
   document.querySelectorAll('#spreadPicker button').forEach((x) => x.classList.toggle('on', x === b));
   const wasActive = state.phase !== 'idle';
   state.spread = b.dataset.spread;
-  if (state.picks.length || state.phase === 'reading') resetReading(false);
+  const locked = state.spread === 'one' && todayDaily();
+  if (state.picks.length || state.phase === 'reading' || (locked && wasActive)) resetReading(false);
   else if (wasActive) { renderSlots(); dealFan(true); updateHint(); }
+  updateIntro();
 });
 addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeModal(); sheet.hidden = true; share.hidden = true; closeTooltip(); }
@@ -1300,3 +1422,4 @@ addEventListener('resize', () => {
 
 buildStack();
 renderSlots();
+updateIntro();

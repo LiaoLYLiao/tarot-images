@@ -1061,11 +1061,12 @@ function openModal(p, standalone, reading = currentReading()) {
     }).join('');
     if (items) rel = `<section><h4>與其他牌的關係</h4><div class="rel">${items}</div></section>`;
   }
-  const box = (field, title) => `<div class="${focus === field ? 'focus' : ''}"><h4>${title}</h4><p>${card[field]}</p></div>`;
+  // 選了問題類型就只顯示那個面向加上建議；綜合則顯示感情、事業與建議
+  const TITLES = { love: '感情', work: '事業／學業', self: '自我成長', advice: '建議' };
+  const fields = standalone ? ['love', 'work', 'self', 'advice'] : focus ? [focus, 'advice'] : ['love', 'work', 'advice'];
+  const box = (field) => `<div class="${focus === field ? 'focus' : ''}"><h4>${focus === field ? TOPICS[reading.topic].zh : TITLES[field]}</h4><p>${card[field]}</p></div>`;
   const aspects = `
-    <div class="aspects">
-      ${box('love', '感情')}${box('work', '事業／學業')}${box('advice', '建議')}
-    </div>
+    <div class="aspects n${fields.length}">${fields.map(box).join('')}</div>
     ${!standalone && reversed ? '<p class="other">逆位時，以上面向的能量會受阻或向內收，請特別留意其中提醒的部分。</p>' : ''}`;
   const body = standalone
     ? `<p class="kw"><small>正位關鍵字</small>${card.up}</p>
@@ -1110,8 +1111,8 @@ function openSheet(reading = currentReading(), back = null) {
     <details ${(topic.field || 'love') === field ? 'open' : ''}><summary>${title}</summary>
       ${picks.map((p) => `<p><b>${posName(p)}・${p.card.zh}</b>：${p.card[field]}</p>`).join('')}
     </details>`;
-  const aspectOrder = [['love', '感情面向'], ['work', '事業／學業面向']];
-  if (topic.field === 'work') aspectOrder.reverse();
+  // 綜合才列出各面向；選了問題類型時，上面的「○○上的解讀」已經涵蓋
+  const aspectOrder = topic.field ? [] : [['love', '感情面向'], ['work', '事業／學業面向']];
   const saved = reading.id && store.get(HISTORY_KEY, []).find((h) => h.id === reading.id);
 
   sheet.querySelector('.sheet-content').innerHTML = `

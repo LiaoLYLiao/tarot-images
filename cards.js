@@ -135,7 +135,7 @@ const CARDS = [
     }))),
 ].map((c) => {
   const [upText, revText, love, work, advice] = MEANINGS[c.file];
-  return { ...c, upText, revText, love, work, advice };
+  return { ...c, upText, revText, love, work, advice, self: SELF_GROWTH[c.file] };
 });
 
 // 小牌的數字能量，順序同 RANKS

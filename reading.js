@@ -170,7 +170,7 @@ const TOPICS = {
   love: { zh: '感情', field: 'love' },
   career: { zh: '事業', field: 'work' },
   study: { zh: '學業', field: 'work' },
-  self: { zh: '自我成長', field: 'advice' },
+  self: { zh: '自我成長', field: 'self' },
 };
 
 function topicLine(p, topic) {

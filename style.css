@@ -325,6 +325,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .modal-text section p, .aspects p { margin: 0; font-size: 14px; line-height: 1.85; }
 .rev-kw { color: #ffb4b4; }
 .aspects { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
+.aspects.n2, .aspects.n4 { grid-template-columns: repeat(2, 1fr); }
 .aspects > div { padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .05); border: 1px solid rgba(232, 200, 119, .15); }
 .aspects p { font-size: 13px; line-height: 1.7; }
 .aspects .focus { border-color: var(--gold); background: rgba(232, 200, 119, .1); box-shadow: 0 0 18px rgba(232, 200, 119, .18); }
@@ -483,7 +484,7 @@ body.gallery-mode #spreadName, body.gallery-mode #chooser { visibility: hidden; 
   .modal-body { flex-direction: column; gap: 18px; padding: 56px 16px 24px; max-height: 100%; overflow: auto; align-items: center; }
   .mcard { height: min(52vh, 440px); }
   .modal-text { width: 100%; max-height: none; overflow: visible; padding-right: 0; }
-  .aspects { grid-template-columns: 1fr; }
+  .aspects, .aspects.n2, .aspects.n4 { grid-template-columns: 1fr; }
   .modal-text h2 { font-size: 26px; }
   #modal { align-items: flex-start; }
   .sheet-body { padding: 28px 18px; }

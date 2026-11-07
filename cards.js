@@ -167,6 +167,7 @@ const SUIT_DOMAIN = {
 const SPREADS = {
   one: {
     name: '每日一牌',
+    blurb: '今天的指引，一天只能抽一張',
     positions: [
       { name: '今日指引', desc: '今天宇宙想對你說的話', x: 0, y: 0 },
     ],
@@ -176,6 +177,7 @@ const SPREADS = {
   // x/y 是直式排法，wx/wy 是寬螢幕的橫式排法，s 是牌的放大倍率。
   theme: {
     name: '一大三小',
+    blurb: '一張大牌定主題，三張小牌看過去、現在、未來',
     positions: [
       { name: '主題', desc: '這件事背後的核心課題', pool: 'major', s: 1.28, x: 0, y: -0.7, wx: -2.05, wy: 0 },
       { name: '過去', desc: '形塑現況的過往能量', pool: 'minor', x: -1.22, y: 0.72, wx: -0.2, wy: 0 },
@@ -186,6 +188,7 @@ const SPREADS = {
   },
   celtic: {
     name: '凱爾特十字',
+    blurb: '十張牌完整剖析，適合重大或複雜的問題',
     positions: [
       { name: '現況', desc: '問題的核心', x: 0, y: 0 },
       { name: '阻礙', desc: '橫在面前的挑戰', x: 0, y: 0, rot: 90 },
@@ -201,6 +204,74 @@ const SPREADS = {
     // [0, 1] 沒有畫線（兩張重疊），只在牌的詳細資訊裡顯示
     edges: [[3, 0], [0, 5], [4, 0], [0, 2], [2, 6], [6, 7], [7, 8], [8, 9], [9, 4], [0, 1]],
   },
+  love: {
+    name: '關係牌陣',
+    blurb: '看你和對方的心意、關係現況與未來發展',
+    positions: [
+      { name: '關係現況', desc: '這段關係目前的狀態', x: 0, y: -0.56, wx: -1.2, wy: 0 },
+      { name: '你的心意', desc: '你在這段關係裡的感受', x: -1.2, y: -0.56, wx: -2.4, wy: 0 },
+      { name: '對方的心意', desc: '對方在這段關係裡的感受', x: 1.2, y: -0.56, wx: 0, wy: 0 },
+      { name: '阻礙', desc: '兩人之間需要面對的課題', x: -0.6, y: 0.56, wx: 1.2, wy: 0 },
+      { name: '未來發展', desc: '這段關係可能的走向', x: 0.6, y: 0.56, wx: 2.4, wy: 0 },
+    ],
+    edges: [[1, 0], [0, 2], [0, 3], [0, 4], [3, 4]],
+  },
+  career: {
+    name: '職涯牌陣',
+    blurb: '盤點優勢與挑戰，找出事業的下一步',
+    positions: [
+      { name: '現況', desc: '你在工作上的處境', x: 0, y: -0.56, wx: -1.2, wy: 0 },
+      { name: '優勢', desc: '你可以發揮的長處與資源', x: -1.2, y: -0.56, wx: -2.4, wy: 0 },
+      { name: '挑戰', desc: '需要克服的困難', x: 1.2, y: -0.56, wx: 0, wy: 0 },
+      { name: '建議', desc: '接下來該怎麼做', x: -0.6, y: 0.56, wx: 1.2, wy: 0 },
+      { name: '結果', desc: '照這個方向可能的結果', x: 0.6, y: 0.56, wx: 2.4, wy: 0 },
+    ],
+    edges: [[1, 0], [0, 2], [0, 3], [3, 4], [2, 4]],
+  },
+  study: {
+    name: '學業牌陣',
+    blurb: '看清學習狀態，找到適合你的讀書方法',
+    positions: [
+      { name: '目前狀態', desc: '你現在的學習狀況', x: 0, y: -0.56, wx: -1.2, wy: 0 },
+      { name: '學習優勢', desc: '你擅長、可以依靠的地方', x: -1.2, y: -0.56, wx: -2.4, wy: 0 },
+      { name: '需要加強', desc: '讓你卡住的地方', x: 1.2, y: -0.56, wx: 0, wy: 0 },
+      { name: '方法建議', desc: '更有效的學習方式', x: -0.6, y: 0.56, wx: 1.2, wy: 0 },
+      { name: '可能結果', desc: '持續努力後的成果', x: 0.6, y: 0.56, wx: 2.4, wy: 0 },
+    ],
+    edges: [[1, 0], [0, 2], [0, 3], [3, 4], [2, 4]],
+  },
+  choice: {
+    name: '二選一',
+    blurb: '比較兩個選項的發展與結果（在問題裡寫下 A 和 B）',
+    positions: [
+      { name: '現況', desc: '你做選擇時的處境', x: 0, y: 0, wx: 0, wy: 0 },
+      { name: 'A 的發展', desc: '選擇 A 之後的過程', x: -1.2, y: 0.56, wx: -1.2, wy: 0 },
+      { name: 'A 的結果', desc: '選擇 A 最後的結果', x: -1.2, y: -0.56, wx: -2.4, wy: 0 },
+      { name: 'B 的發展', desc: '選擇 B 之後的過程', x: 1.2, y: 0.56, wx: 1.2, wy: 0 },
+      { name: 'B 的結果', desc: '選擇 B 最後的結果', x: 1.2, y: -0.56, wx: 2.4, wy: 0 },
+    ],
+    edges: [[0, 1], [1, 2], [0, 3], [3, 4]],
+  },
+  self: {
+    name: '身心靈牌陣',
+    blurb: '從身體、心理、靈性三個層面認識自己',
+    positions: [
+      { name: '核心課題', desc: '你現在最重要的成長功課', s: 1.18, x: 0, y: -0.66, wx: -2, wy: 0 },
+      { name: '身體', desc: '身體與生活狀態想告訴你的事', x: -1.2, y: 0.66, wx: -0.25, wy: 0 },
+      { name: '心理', desc: '情緒與想法的狀態', x: 0, y: 0.66, wx: 1.05, wy: 0 },
+      { name: '靈性', desc: '內在與信念層面的指引', x: 1.2, y: 0.66, wx: 2.35, wy: 0 },
+    ],
+    edges: [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3]],
+  },
+};
+
+// 依問題類型推薦的牌陣，第一個最推薦
+const TOPIC_SPREADS = {
+  general: ['theme', 'choice', 'celtic'],
+  love: ['love', 'theme', 'choice'],
+  career: ['career', 'choice', 'theme'],
+  study: ['study', 'choice', 'theme'],
+  self: ['self', 'theme', 'celtic'],
 };
 
 function relationOf(a, b) {

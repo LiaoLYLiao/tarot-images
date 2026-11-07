@@ -21,11 +21,7 @@
 
 <header id="top">
   <div class="brand"><span class="en">Star Tarot</span><span class="zh">星空塔羅</span></div>
-  <div class="seg" id="spreadPicker" role="tablist">
-    <button data-spread="one">每日一牌</button>
-    <button data-spread="theme" class="on">一大三小</button>
-    <button data-spread="celtic">凱爾特十字</button>
-  </div>
+  <div id="spreadName"></div>
   <div class="tools">
     <button class="icon" id="historyBtn" title="占卜紀錄" aria-label="占卜紀錄"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.6C10 5.1 7 4.6 4 5.1v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13c-3-.5-6 0-8 1.5zM12 6.6v13"/></svg></button>
     <button class="icon" id="galleryBtn" title="牌卡畫廊" aria-label="牌卡畫廊"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.6" width="9.5" height="14.5" rx="1.6" transform="rotate(12 13.7 10.9)"/><rect x="5" y="5.6" width="9.5" height="14.5" rx="1.6" transform="rotate(-6 9.7 12.9)"/></svg></button>
@@ -44,6 +40,19 @@
   </div>
   <button class="primary" id="shuffleBtn">✦ 洗牌</button>
   <p class="sub">點擊牌堆或按下洗牌 · 手機也可以搖一搖</p>
+</div>
+
+<div id="chooser" hidden>
+  <div class="chooser-head">
+    <button class="back-link" data-act="back">← 返回</button>
+    <h2>選擇牌陣</h2>
+    <p class="chooser-sub"></p>
+  </div>
+  <div class="chooser-list"></div>
+  <div class="chooser-more">
+    <p class="label">更多牌陣</p>
+    <div class="chips"></div>
+  </div>
 </div>
 
 <p id="hint"></p>

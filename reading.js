@@ -14,6 +14,26 @@ const POS_LENS = {
   環境: (kw) => `周遭的人事物為你帶來「${kw}」的影響`,
   希望與恐懼: (kw) => `你心中既期待又害怕的是「${kw}」`,
   結果: (kw) => `綜合所有能量，最可能的走向是「${kw}」`,
+  關係現況: (kw) => `你們的關係目前處在「${kw}」的狀態`,
+  你的心意: (kw) => `你在這段關係裡的感受是「${kw}」`,
+  對方的心意: (kw) => `對方心裡的感受是「${kw}」`,
+  未來發展: (kw) => `照目前的相處方式，關係可能朝「${kw}」發展`,
+  優勢: (kw) => `你可以好好發揮的長處是「${kw}」`,
+  挑戰: (kw) => `需要克服的課題是「${kw}」`,
+  建議: (kw) => `接下來的行動方向是「${kw}」`,
+  目前狀態: (kw) => `你現在的學習狀態是「${kw}」`,
+  學習優勢: (kw) => `你可以依靠的學習優勢是「${kw}」`,
+  需要加強: (kw) => `讓你卡住、需要加強的是「${kw}」`,
+  方法建議: (kw) => `適合你的學習方式與「${kw}」有關`,
+  可能結果: (kw) => `持續努力下去，成果會朝「${kw}」發展`,
+  'A 的發展': (kw) => `選擇 A 之後，過程會經歷「${kw}」`,
+  'A 的結果': (kw) => `選擇 A 最後的結果是「${kw}」`,
+  'B 的發展': (kw) => `選擇 B 之後，過程會經歷「${kw}」`,
+  'B 的結果': (kw) => `選擇 B 最後的結果是「${kw}」`,
+  核心課題: (kw) => `你現在最重要的成長功課是「${kw}」`,
+  身體: (kw) => `身體與生活狀態在提醒你「${kw}」`,
+  心理: (kw) => `你的情緒與想法正處在「${kw}」`,
+  靈性: (kw) => `內在與信念層面給你的指引是「${kw}」`,
 };
 
 const kwOf = (p) => (p.reversed ? p.card.rev : p.card.up);
@@ -109,6 +129,25 @@ function storyParagraphs(picks, spreadKey, spread) {
     out.push(res.reversed
       ? `最終的結果牌「${res.card.zh}」是逆位，代表若不調整，事情可能不如預期。好消息是，結果會隨著你的選擇而改變。`
       : `最終的結果牌「${res.card.zh}」是正位：${textOf(res)}`);
+  } else if (spreadKey === 'choice') {
+    const now = at('現況'), aMid = at('A 的發展'), aEnd = at('A 的結果'), bMid = at('B 的發展'), bEnd = at('B 的結果');
+    out.push(`你站在「${now.card.zh}」（${kwOf(now)}）的處境上做選擇。`);
+    out.push(`選擇 A：過程是「${aMid.card.zh}」（${kwOf(aMid)}），最後走向「${aEnd.card.zh}」（${kwOf(aEnd)}）。`);
+    out.push(`選擇 B：過程是「${bMid.card.zh}」（${kwOf(bMid)}），最後走向「${bEnd.card.zh}」（${kwOf(bEnd)}）。`);
+    // 結果牌比過程牌重要；正位加分、逆位扣分
+    const score = (mid, end) => (mid.reversed ? -1 : 1) + (end.reversed ? -2 : 2);
+    const a = score(aMid, aEnd), b = score(bMid, bEnd);
+    out.push(a === b
+      ? '兩個選項的能量相當，沒有哪一邊明顯比較順。這時候不妨回到你心裡真正在乎的事，它會比牌更清楚地告訴你答案。'
+      : `整體來看，選擇 ${a > b ? 'A' : 'B'} 的能量比較順暢。不過這只是參考，牌呈現的是此刻的趨勢，真正做決定的永遠是你。`);
+  } else if (picks.length > 1) {
+    // 關係、職涯、學業、身心靈：依牌位順序串成一段，再看最後一張牌的走向
+    out.push(picks.map((p) => `「${spread.positions[p.slot].name}」是「${p.card.zh}」（${kwOf(p)}）`).join('；') + '。');
+    const core = picks[0], last = picks[picks.length - 1];
+    out.push(`這一切的核心是「${core.card.zh}」：${textOf(core)}`);
+    out.push(last.reversed
+      ? `最後一張「${spread.positions[last.slot].name}」是逆位，提醒你目前的方向需要調整，改變仍然來得及。`
+      : `最後一張「${spread.positions[last.slot].name}」是正位，整體走向偏向正面。`);
   } else {
     const p = picks[0];
     out.push(`今天的指引是「${p.card.zh}」（${orientOf(p)}）。${textOf(p)}`);
@@ -147,6 +186,7 @@ function topicReading(picks, spreadKey, spread, topic) {
   if (!t.field) return null;
   const at = (name) => picks.find((p) => spread.positions[p.slot].name === name);
   const last = at('未來') || at('結果') || picks[picks.length - 1];
+  const core = at('現況') || picks[0];
   let intro;
   if (spreadKey === 'theme') {
     const T = at('主題');
@@ -154,9 +194,9 @@ function topicReading(picks, spreadKey, spread, topic) {
   } else if (picks.length === 1) {
     intro = `今天在${t.zh}上的指引來自「${last.card.zh}」。`;
   } else {
-    intro = `以「${at('現況').card.zh}」為核心，來看看你在${t.zh}上的狀況。`;
+    intro = `以「${core.card.zh}」為核心，來看看你在${t.zh}上的狀況。`;
   }
-  if (picks.length > 1) {
+  if (picks.length > 1 && spreadKey !== 'choice') {
     intro += last.reversed
       ? `「${spread.positions[last.slot].name}」的${last.card.zh}是逆位，${t.zh}上目前的方向需要調整，多一點耐心與溝通，局面仍有轉圜的空間。`
       : `「${spread.positions[last.slot].name}」的${last.card.zh}是正位，整體來看${t.zh}的走向偏向正面。`;

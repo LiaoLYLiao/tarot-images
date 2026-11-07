@@ -437,7 +437,7 @@ const headerBottom = () => $('#top').getBoundingClientRect().bottom;
 
 // 牌堆放在標題列與下方問題區之間的空間正中央，依可用高度縮放
 function stackPos(i) {
-  const top = headerBottom() + 16, bottom = $('#intro').offsetTop - 20;
+  const top = headerBottom() + 16, bottom = (state.phase === 'choosing' ? chooser : $('#intro')).offsetTop - 20;
   const h = Math.max(120, Math.min((bottom - top) * 0.8, 380, innerWidth * 0.46 * CARD_RATIO));
   return { x: innerWidth / 2, y: (top + bottom) / 2 + 3 - i * 0.08, w: h / CARD_RATIO, h, rot: 0 };
 }
@@ -461,8 +461,9 @@ function fanGeom(n = state.fanN || CARDS.length) {
 
 function spreadArea() {
   const top = headerBottom() + 18;
-  const bottom = state.phase === 'reading' ? innerHeight - 84 : fanGeom().top - 46;
-  return { x: 16, y: top, w: innerWidth - 32, h: Math.max(120, bottom - top) };
+  const bottom = state.phase === 'reading' ? innerHeight - 78 : fanGeom().top - 46;
+  const side = innerWidth < 640 ? 8 : 16;
+  return { x: side, y: top, w: innerWidth - side * 2, h: Math.max(120, bottom - top) };
 }
 
 function fitPositions(pts, area) {
@@ -473,7 +474,7 @@ function fitPositions(pts, area) {
     minY = Math.min(minY, p.y - hy); maxY = Math.max(maxY, p.y + hy);
   }
   const pad = 12; // 上方牌位標籤的空間
-  const W = Math.min(area.w / (maxX - minX), (area.h - pad) / ((maxY - minY) * CARD_RATIO), 250);
+  const W = Math.min(area.w / (maxX - minX), (area.h - pad) / ((maxY - minY) * CARD_RATIO), 340);
   const H = W * CARD_RATIO;
   const cx = area.x + area.w / 2 - ((minX + maxX) / 2) * W;
   const cy = area.y + pad + (area.h - pad) / 2 - ((minY + maxY) / 2) * H;
@@ -502,7 +503,7 @@ function place(el, p, lift = true) {
 /* ================= 牌位與標籤 ================= */
 function renderSlots() {
   const slots = $('#slots'), labels = $('#labels');
-  const show = state.phase === 'picking' || state.phase === 'reading';
+  const show = ['dealing', 'picking', 'reading'].includes(state.phase);
   const positions = SPREADS[state.spread].positions;
   if (slots.children.length !== positions.length || slots.dataset.spread !== state.spread) {
     slots.innerHTML = labels.innerHTML = '';
@@ -599,8 +600,6 @@ async function askMotion() {
 async function startShuffle() {
   if (state.phase === 'shuffling') return;
   if (state.phase === 'reading' || state.picks.length) return resetReading(true);
-  const today = state.spread === 'one' && todayDaily();
-  if (today) return openSheet(readingFromHistory(today), 'calendar');
   sound.unlock();
   askMotion();
   state.phase = 'shuffling';
@@ -638,10 +637,92 @@ async function startShuffle() {
   }
 
   state.els.forEach((el, k) => (el.dataset.k = k));
+  showChooser();
+}
+
+/* ================= 選擇牌陣 ================= */
+const chooser = $('#chooser');
+
+// 牌陣的縮圖：用直式排法畫出每個牌位的小方塊
+function spreadDiagram(key) {
+  const ps = SPREADS[key].positions;
+  const boxes = ps.map((p) => {
+    const s = p.s || 1, w = (p.rot ? CARD_RATIO : 1) * s, h = (p.rot ? 1 : CARD_RATIO) * s;
+    return { x: p.x - w / 2, y: p.y * CARD_RATIO - h / 2, w, h };
+  });
+  const minX = Math.min(...boxes.map((b) => b.x)), maxX = Math.max(...boxes.map((b) => b.x + b.w));
+  const minY = Math.min(...boxes.map((b) => b.y)), maxY = Math.max(...boxes.map((b) => b.y + b.h));
+  const k = 36 / Math.max(maxX - minX, maxY - minY);
+  const ox = (44 - (maxX - minX) * k) / 2, oy = (44 - (maxY - minY) * k) / 2;
+  return `<svg class="diagram" viewBox="0 0 44 44" aria-hidden="true">${boxes.map((b) =>
+    `<rect x="${(ox + (b.x - minX) * k).toFixed(1)}" y="${(oy + (b.y - minY) * k).toFixed(1)}" width="${(b.w * k - 1.2).toFixed(1)}" height="${(b.h * k - 1.2).toFixed(1)}" rx="1"/>`).join('')}</svg>`;
+}
+
+function showChooser() {
+  const today = todayDaily();
+  const topic = TOPICS[state.topic];
+  const recs = [...TOPIC_SPREADS[state.topic]];
+  const tiles = [];
+  if (!today) tiles.push({ key: 'one', badge: '今天還沒抽', hot: true });
+  recs.forEach((key, i) => tiles.push({ key, badge: i === 0 ? (state.topic === 'general' ? '推薦' : `適合${topic.zh}`) : '' }));
+  const shown = new Set(tiles.map((t) => t.key));
+  const more = Object.keys(SPREADS).filter((k) => !shown.has(k));
+
+  chooser.querySelector('.chooser-sub').textContent = today
+    ? (state.topic === 'general' ? '依你的問題挑一個牌陣' : `依你選的「${topic.zh}」推薦`)
+    : '今天的每日一牌還沒抽，推薦先抽一張今天的指引';
+  chooser.querySelector('.chooser-list').innerHTML = tiles.map(({ key, badge, hot }) => {
+    const sp = SPREADS[key];
+    return `<button class="sp-tile ${hot ? 'hot' : ''}" data-spread="${key}">
+      ${spreadDiagram(key)}
+      <span class="sp-text">
+        <span class="sp-name">${sp.name}<span class="sp-count">${sp.positions.length} 張</span>${badge ? `<span class="badge">${badge}</span>` : ''}</span>
+        <span class="sp-blurb">${sp.blurb}</span>
+      </span>
+    </button>`;
+  }).join('');
+  chooser.querySelector('.chooser-more .chips').innerHTML = more.map((key) =>
+    `<button data-spread="${key}">${SPREADS[key].name}${key === 'one' && today ? `・今天是${CARD_BY_FILE[today.picks[0].file]?.zh || ''}` : ''}</button>`).join('');
+  chooser.hidden = false;
+  state.phase = 'choosing';
+  updateHint();
+  // 牌堆讓出空間給選單
+  state.els.forEach((el, i) => { el.style.transitionDuration = '.6s'; el.style.transitionDelay = '0ms'; place(el, stackPos(i)); });
+}
+
+async function chooseSpread(key) {
+  if (state.phase !== 'choosing') return;
+  const today = key === 'one' && todayDaily();
+  if (today) return openSheet(readingFromHistory(today), 'calendar');
+  state.spread = key;
+  chooser.hidden = true;
+  state.phase = 'dealing';
+  renderSlots();
+  updateHeader();
   await sleep(dealFan(true));
   state.phase = 'picking';
   renderSlots();
   updateHint();
+}
+
+chooser.addEventListener('click', (e) => {
+  if (e.target.closest('[data-act="back"]')) {
+    chooser.hidden = true;
+    state.phase = 'idle';
+    $('#intro').classList.remove('gone');
+    updateIntro();
+    updateHint();
+    return;
+  }
+  const b = e.target.closest('[data-spread]');
+  if (b) chooseSpread(b.dataset.spread);
+});
+
+// 標題列中間顯示目前的牌陣與問題類型（只在電腦版）
+function updateHeader() {
+  const on = ['dealing', 'picking', 'reading'].includes(state.phase);
+  const topic = TOPICS[state.topic];
+  $('#spreadName').textContent = on ? SPREADS[state.spread].name + (topic.field ? ` · ${topic.zh}` : '') : '';
 }
 
 const poolOf = (slot) => SPREADS[state.spread].positions[slot]?.pool;
@@ -788,6 +869,7 @@ async function resetReading(reshuffle) {
   closeTooltip();
   $('#lines').innerHTML = '';
   $('#actions').hidden = true;
+  chooser.hidden = true;
   state.els.forEach((el) => {
     el.style.transitionDuration = '.5s';
     el.style.opacity = 0;
@@ -799,6 +881,7 @@ async function resetReading(reshuffle) {
   state.fanN = 0;
   renderSlots();
   updateHint();
+  updateHeader();
   await sleep(450);
   buildStack();
   if (reshuffle) {
@@ -1132,12 +1215,10 @@ function dailyByDay() {
 const todayDaily = () => dailyByDay()[dayKey(Date.now())];
 
 function updateIntro() {
-  const done = state.spread === 'one' && todayDaily();
-  $('#shuffleBtn').textContent = done ? '✦ 查看今天的牌' : '✦ 洗牌';
-  $('#qBox').hidden = !!done;
-  $('#topicBox').hidden = !!done;
   if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
-  $('#intro .sub').textContent = done ? '每日一牌一天只能抽一張，明天再來吧 · 日曆在右上角的紀錄裡' : '點擊牌堆或按下洗牌 · 手機也可以搖一搖';
+  const sub = $('#intro .sub');
+  sub.textContent = todayDaily() ? '點擊牌堆或按下洗牌 · 手機也可以搖一搖' : '今天的每日一牌還沒抽 · 洗牌後可以先抽一張';
+  sub.classList.toggle('nudge', !todayDaily());
 }
 
 const tabsHTML = (on) => `<div class="tabs">
@@ -1212,7 +1293,7 @@ function openCalendar(step = 0) {
       <div><b>${entries.length}</b><span>本月抽牌天數${total ? ` / ${total}` : ''}</span></div>
       <div><b>${streakDays(map)}</b><span>目前連續天數</span></div>
     </div>
-    ${isThisMonth && !map[todayK] ? '<p class="cal-cta">今天還沒抽牌，切換到「每日一牌」來抽今天的指引吧 ✦</p>' : ''}
+    ${isThisMonth && !map[todayK] ? '<p class="cal-cta">今天還沒抽牌，洗牌後選「每日一牌」來抽今天的指引吧 ✦</p>' : ''}
     <div class="cal-grid">${cells}</div>
     ${entries.length ? `
     <h3>本月能量</h3>
@@ -1344,7 +1425,7 @@ async function renderShareImage(reading) {
   let rows;
   if (reading.spread === 'theme') rows = [[{ i: 0, w: 280 }, { i: 1, w: 214 }, { i: 2, w: 214 }, { i: 3, w: 214 }]];
   else if (picks.length === 1) rows = [[{ i: 0, w: 400 }]];
-  else rows = [picks.slice(0, 5).map((_, i) => ({ i, w: 176 })), picks.slice(5).map((_, i) => ({ i: i + 5, w: 176 }))];
+  else rows = [picks.slice(0, 5).map((_, i) => ({ i, w: picks.length <= 4 ? 214 : 176 })), picks.slice(5).map((_, i) => ({ i: i + 5, w: 176 }))].filter((r) => r.length);
   const gap = 26;
   for (const row of rows) {
     const total = row.reduce((a, b) => a + b.w, 0) + gap * (row.length - 1);
@@ -1542,18 +1623,6 @@ $('#soundBtn').addEventListener('click', (e) => {
   e.currentTarget.innerHTML = state.muted ? SOUND_ICON.off : SOUND_ICON.on;
   e.currentTarget.classList.toggle('off', state.muted);
 });
-$('#spreadPicker').addEventListener('click', (e) => {
-  const b = e.target.closest('button');
-  if (!b || state.phase === 'shuffling' || state.dealing || b.dataset.spread === state.spread) return;
-  if (state.picks.some((p) => p.el.classList.contains('flying') || !p.el.classList.contains('flipped'))) return;
-  document.querySelectorAll('#spreadPicker button').forEach((x) => x.classList.toggle('on', x === b));
-  const wasActive = state.phase !== 'idle';
-  state.spread = b.dataset.spread;
-  const locked = state.spread === 'one' && todayDaily();
-  if (state.picks.length || state.phase === 'reading' || (locked && wasActive)) resetReading(false);
-  else if (wasActive) { renderSlots(); dealFan(true); updateHint(); }
-  updateIntro();
-});
 addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { closeModal(); sheet.hidden = true; share.hidden = true; closeTooltip(); }
 });
@@ -1584,7 +1653,7 @@ addEventListener('resize', () => {
     sky.init();
     fx.resize();
     gallery.resize();
-    if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
+    if (state.phase === 'idle' || state.phase === 'choosing') state.els.forEach((el, i) => place(el, stackPos(i)));
     if (state.phase === 'picking' && !state.dealing) dealFan(false);
     if (state.phase !== 'shuffling') relayoutPlaced();
     updateHint();

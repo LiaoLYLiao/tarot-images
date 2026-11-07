@@ -77,6 +77,82 @@ const sky = (() => {
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
   let nextMeteor = performance.now() + 2500;
 
+  // 星座鯊鯊：由星星連成的鯊魚輪廓，每隔一段時間從夜空游過。
+  // 座標以身長為單位，鼻尖朝右（x=1），尾巴在左（x≈0）。
+  const SHARK = [[1, 0.02], [0.82, -0.09], [0.58, -0.12], [0.48, -0.32], [0.4, -0.12], [0.22, -0.08], [0.08, -0.03],
+    [-0.08, -0.24], [0, 0], [-0.05, 0.16], [0.08, 0.04], [0.3, 0.1], [0.5, 0.26], [0.58, 0.11], [0.86, 0.08]];
+  const GILLS = [[[0.67, -0.05], [0.65, 0.06]], [[0.63, -0.05], [0.61, 0.06]]];
+  const EYE = [0.8, -0.03];
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sharkY = () => innerHeight * (rand() < 0.5 ? 0.16 + rand() * 0.14 : 0.42 + rand() * 0.16);
+  let shark = null, nextShark = performance.now() + 3500, lastT = 0;
+
+  function spawnShark(t) {
+    const dir = rand() < 0.5 ? 1 : -1;
+    const len = clamp(Math.min(innerWidth, innerHeight) * 0.5, 150, 340);
+    shark = {
+      dir, len, x: dir > 0 ? -len : innerWidth + len, y: sharkY(),
+      v: (innerWidth + len * 2) / (17000 + rand() * 6000), ph: rand() * 6, trail: [],
+    };
+    nextShark = t + 1e12;
+  }
+
+  function drawShark(t, dt) {
+    const s = shark;
+    s.x += s.dir * s.v * dt;
+    if ((s.dir > 0 && s.x > innerWidth + s.len) || (s.dir < 0 && s.x < -s.len)) {
+      shark = null;
+      nextShark = t + 25000 + rand() * 20000;
+      return;
+    }
+    const edge = Math.min(s.x, innerWidth - s.x);
+    const a = clamp((edge + s.len * 0.3) / (s.len * 0.8), 0, 1) * 0.85;
+    const bob = Math.sin(t * 0.0009 + s.ph) * 10;
+    const pos = ([px, py]) => {
+      const wag = Math.sin(t * 0.0042 + s.ph - px * 3.2) * 0.075 * (1 - Math.min(px, 1)) ** 2;
+      return [s.x + s.dir * (px - 0.5) * s.len - mouse.x * 18, s.y + (py + wag) * s.len + bob - mouse.y * 18];
+    };
+    const pts = SHARK.map(pos);
+
+    // 尾巴後方留下淡淡的星塵
+    if (rand() < 0.5) s.trail.push({ p: pos([0, 0]), life: 1 });
+    s.trail = s.trail.filter((d) => (d.life -= 0.012) > 0);
+    for (const d of s.trail) {
+      ctx.globalAlpha = d.life * a * 0.7;
+      ctx.drawImage(SPRITES.star, d.p[0] - 4, d.p[1] - 4, 8, 8);
+    }
+
+    // 身體裡一層很淡的光，讓輪廓讀得出是一隻鯊魚
+    ctx.globalAlpha = a * 0.5;
+    const [cx, cy] = pos([0.55, 0]);
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, s.len * 0.55);
+    glow.addColorStop(0, 'rgba(120, 170, 255, .16)');
+    glow.addColorStop(1, 'rgba(120, 170, 255, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = 'rgba(200, 222, 255, .62)';
+    ctx.lineWidth = 1.4;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+    ctx.beginPath();
+    for (const [p, q] of GILLS) { const [x1, y1] = pos(p), [x2, y2] = pos(q); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+    ctx.stroke();
+    pts.forEach(([x, y], i) => {
+      const tw = 0.7 + 0.3 * Math.sin(t * 0.003 + i * 1.7);
+      const size = (i === 3 || i === 7 || i === 0 || i === 12 ? 20 : 13) * tw;
+      ctx.globalAlpha = a * tw;
+      ctx.drawImage(SPRITES.star, x - size / 2, y - size / 2, size, size);
+    });
+    const [ex, ey] = pos(EYE);
+    ctx.globalAlpha = a;
+    ctx.drawImage(SPRITES.gold, ex - 8, ey - 8, 16, 16);
+  }
+
   function init() {
     ctx = fitCanvas(canvas);
     const n = Math.round((innerWidth * innerHeight) / 2600);
@@ -95,6 +171,8 @@ const sky = (() => {
   });
 
   function frame(t) {
+    const dt = Math.min(t - lastT, 50);
+    lastT = t;
     mouse.x += (mouse.tx - mouse.x) * 0.04;
     mouse.y += (mouse.ty - mouse.y) * 0.04;
     ctx.clearRect(0, 0, innerWidth, innerHeight);
@@ -125,12 +203,14 @@ const sky = (() => {
       ctx.stroke();
       ctx.drawImage(SPRITES.star, m.x - 6, m.y - 6, 12, 12);
     }
+    if (!shark && !calm && t > nextShark) spawnShark(t);
+    if (shark) drawShark(t, dt);
     ctx.globalAlpha = 1;
     requestAnimationFrame(frame);
   }
   init();
   requestAnimationFrame(frame);
-  return { init };
+  return { init, spawnShark: () => spawnShark(performance.now()) };
 })();
 
 /* ================= 粒子特效 ================= */
@@ -786,7 +866,7 @@ function openModal(p, standalone, reading = currentReading()) {
   const box = (field, title) => `<div class="${focus === field ? 'focus' : ''}"><h4>${title}</h4><p>${card[field]}</p></div>`;
   const aspects = `
     <div class="aspects">
-      ${box('love', '💗 感情')}${box('work', '💼 事業／學業')}${box('advice', '✦ 建議')}
+      ${box('love', '感情')}${box('work', '事業／學業')}${box('advice', '建議')}
     </div>
     ${!standalone && reversed ? '<p class="other">逆位時，以上面向的能量會受阻或向內收，請特別留意其中提醒的部分。</p>' : ''}`;
   const body = standalone
@@ -832,7 +912,7 @@ function openSheet(reading = currentReading(), back = null) {
     <details ${(topic.field || 'love') === field ? 'open' : ''}><summary>${title}</summary>
       ${picks.map((p) => `<p><b>${posName(p)}・${p.card.zh}</b>：${p.card[field]}</p>`).join('')}
     </details>`;
-  const aspectOrder = [['love', '💗 感情面向'], ['work', '💼 事業／學業面向']];
+  const aspectOrder = [['love', '感情面向'], ['work', '事業／學業面向']];
   if (topic.field === 'work') aspectOrder.reverse();
   const saved = reading.id && store.get(HISTORY_KEY, []).find((h) => h.id === reading.id);
 
@@ -840,8 +920,8 @@ function openSheet(reading = currentReading(), back = null) {
     ${back ? `<button class="back-btn" data-act="${back}">← 返回${back === 'calendar' ? '日曆' : '紀錄'}</button>` : ''}
     <h2>${sp.name}</h2>
     <p class="q">${reading.question ? `「${esc(reading.question)}」` : '你的牌陣'}</p>
-    <p class="meta"><span>${topic.icon} ${topic.zh}</span>${reading.t ? `<span>${fmtTime(reading.t)}</span>` : ''}</p>
-    <div class="sheet-tools"><button data-act="share">📤 存成圖片</button>${reading.spread === 'one' && back !== 'calendar' ? '<button data-act="calendar">📅 每日一牌日曆</button>' : ''}</div>
+    <p class="meta"><span>${topic.zh}</span>${reading.t ? `<span>${fmtTime(reading.t)}</span>` : ''}</p>
+    <div class="sheet-tools"><button class="with-icon" data-act="share"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 7.5L12 3.5l4 4"/><path d="M6.5 11H5v9.5h14V11h-1.5"/></svg>存成圖片</button>${reading.spread === 'one' && back !== 'calendar' ? '<button class="with-icon" data-act="calendar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>每日一牌日曆</button>' : ''}</div>
 
     <h3>整體能量</h3>
     <div class="elements">${Object.entries(counts).map(([k, v]) => `<span style="color:${ELEMENTS[k].color}">${ELEMENTS[k].zh} × ${v}</span>`).join('')}</div>
@@ -851,7 +931,7 @@ function openSheet(reading = currentReading(), back = null) {
     ${story.map((t) => `<p class="story">${t}</p>`).join('')}
 
     ${focus ? `
-    <h3>${topic.icon} ${topic.zh}上的解讀</h3>
+    <h3>${topic.zh}上的解讀</h3>
     <p class="story">${focus.intro}</p>
     ${focus.items.map((it) => `<p class="note-line"><b>${it.label}</b>：${it.text}</p>`).join('')}` : ''}
 
@@ -868,7 +948,7 @@ function openSheet(reading = currentReading(), back = null) {
           <div class="k">${kwOf(p)}</div>
           <p class="d">${textOf(p)}</p>
           <p class="d muted">${positionText(p, sp)}</p>
-          ${tl ? `<p class="d topic">${topic.icon} ${topic.zh}：${tl}</p>` : ''}
+          ${tl ? `<p class="d topic">${topic.zh}：${tl}</p>` : ''}
           ${link ? `<p class="d link">${link}</p>` : ''}
           <span class="more">查看大圖與完整牌義 →</span>
         </div>
@@ -906,10 +986,10 @@ function openHistory() {
       <div class="hist" data-id="${h.id}">
         <div class="hist-cards">${[...r.picks].sort((a, b) => a.slot - b.slot).slice(0, 4).map((p) => `<img class="${p.reversed ? 'rev' : ''}" src="${thumb(p.card)}" alt="">`).join('')}</div>
         <div class="hist-info">
-          <div class="p">${fmtTime(h.t)} · ${sp.name} · ${topic.icon} ${topic.zh}</div>
+          <div class="p">${fmtTime(h.t)} · ${sp.name} · ${topic.zh}</div>
           <div class="hist-q">${h.question ? esc(h.question) : '（沒有寫下問題）'}</div>
           <div class="k">${r.picks.map((p) => p.card.zh + (p.reversed ? '（逆）' : '')).join('、')}</div>
-          ${h.note ? `<div class="hist-note">🖊 ${esc(h.note)}</div>` : ''}
+          ${h.note ? `<div class="hist-note">筆記：${esc(h.note)}</div>` : ''}
         </div>
         <button class="del" data-del="${h.id}" aria-label="刪除這筆紀錄">✕</button>
       </div>`;
@@ -939,15 +1019,15 @@ const todayDaily = () => dailyByDay()[dayKey(Date.now())];
 function updateIntro() {
   const done = state.spread === 'one' && todayDaily();
   $('#shuffleBtn').textContent = done ? '✦ 查看今天的牌' : '✦ 洗牌';
-  $('#question').hidden = !!done;
+  $('#qBox').hidden = !!done;
   $('#topicBox').hidden = !!done;
   if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
   $('#intro .sub').textContent = done ? '每日一牌一天只能抽一張，明天再來吧 · 日曆在右上角的紀錄裡' : '點擊牌堆或按下洗牌 · 手機也可以搖一搖';
 }
 
 const tabsHTML = (on) => `<div class="tabs">
-  <button data-act="history" class="${on === 'history' ? 'on' : ''}">📖 占卜紀錄</button>
-  <button data-act="calendar" class="${on === 'calendar' ? 'on' : ''}">📅 每日一牌日曆</button></div>`;
+  <button data-act="history" class="${on === 'history' ? 'on' : ''}">占卜紀錄</button>
+  <button data-act="calendar" class="${on === 'calendar' ? 'on' : ''}">每日一牌日曆</button></div>`;
 
 function streakDays(map) {
   const d = new Date();
@@ -1311,8 +1391,21 @@ $('#question').addEventListener('keydown', (e) => { if (e.key === 'Enter') start
 $('#readingBtn').addEventListener('click', () => openSheet());
 $('#shareBtn').addEventListener('click', () => openShare(currentReading()));
 $('#historyBtn').addEventListener('click', openHistory);
+// 「靈感」按鈕：依目前分類輪流填入建議問題
+let lastIdea = '';
+const ideaIdx = {};
+$('#ideaBtn').addEventListener('click', () => {
+  const list = QUESTION_IDEAS[state.topic];
+  const i = (ideaIdx[state.topic] = ((ideaIdx[state.topic] ?? Math.floor(rand() * list.length)) + 1) % list.length);
+  const q = $('#question');
+  q.value = lastIdea = list[i];
+  q.classList.remove('flash');
+  void q.offsetWidth;
+  q.classList.add('flash');
+});
 function setTopic(key) {
   state.topic = TOPICS[key] ? key : 'general';
+  if ($('#question').value && $('#question').value === lastIdea) $('#question').value = ''; // 換分類時清掉自動填入的舊靈感
   document.querySelectorAll('#topics button').forEach((b) => b.classList.toggle('on', b.dataset.topic === state.topic));
 }
 $('#topics').innerHTML = Object.entries(TOPICS).map(([k, t]) => `<button data-topic="${k}">${t.zh}</button>`).join('');

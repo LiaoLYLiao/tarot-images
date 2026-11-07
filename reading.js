@@ -127,11 +127,11 @@ function themeLink(p, picks, spreadKey) {
 
 // ---------- 問題分類 ----------
 const TOPICS = {
-  general: { zh: '綜合', icon: '✦' },
-  love: { zh: '感情', icon: '💗', field: 'love' },
-  career: { zh: '事業', icon: '💼', field: 'work' },
-  study: { zh: '學業', icon: '📚', field: 'work' },
-  self: { zh: '自我成長', icon: '🌱', field: 'advice' },
+  general: { zh: '綜合' },
+  love: { zh: '感情', field: 'love' },
+  career: { zh: '事業', field: 'work' },
+  study: { zh: '學業', field: 'work' },
+  self: { zh: '自我成長', field: 'advice' },
 };
 
 function topicLine(p, topic) {
@@ -164,3 +164,12 @@ function topicReading(picks, spreadKey, spread, topic) {
   const items = picks.map((p) => ({ label: `${spread.positions[p.slot].name}・${p.card.zh}`, text: topicLine(p, topic) }));
   return { intro, items };
 }
+
+// 問題靈感：用開放式問法（「如何」「什麼」），比「會不會」的是非題更適合塔羅
+const QUESTION_IDEAS = {
+  general: ['我現在最需要知道的是什麼？', '接下來三個月，我該把重心放在哪裡？', '眼前的困境要怎麼突破？', '我忽略了什麼重要的事？', '這個選擇會帶我走向哪裡？', '宇宙現在想提醒我什麼？'],
+  love: ['我們的關係接下來會如何發展？', '對方現在對我的感覺是什麼？', '我該怎麼做，才能讓這段感情更好？', '我在感情裡需要學習的課題是什麼？', '我要怎麼做才能遇到對的人？', '這段感情值得我繼續投入嗎？'],
+  career: ['我目前的工作方向適合我嗎？', '換工作對我來說是好的選擇嗎？', '我該如何在職場上更進一步？', '這個專案或合作會怎麼發展？', '我的天賦適合往哪個方向發展？', '職場上的人際問題該怎麼處理？'],
+  study: ['我該怎麼準備，才能考出好成績？', '這個科系或方向適合我嗎？', '我讀書效率不好的原因是什麼？', '要不要繼續進修或出國念書？', '我該如何平衡課業與生活？'],
+  self: ['我現在最需要放下的是什麼？', '我內心真正渴望的是什麼？', '我該如何更愛自己？', '阻礙我成長的模式是什麼？', '接下來我該培養什麼能力？'],
+};

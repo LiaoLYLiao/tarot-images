@@ -77,60 +77,151 @@ const sky = (() => {
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 };
   let nextMeteor = performance.now() + 2500;
 
-  // 星座鯊鯊：由星星連成的鯊魚輪廓，每隔一段時間從夜空游過。
-  // 座標以身長為單位，鼻尖朝右（x=1），尾巴在左（x≈0）。
-  const SHARK = [[1, 0.02], [0.82, -0.09], [0.58, -0.12], [0.48, -0.32], [0.4, -0.12], [0.22, -0.08], [0.08, -0.03],
-    [-0.08, -0.24], [0, 0], [-0.05, 0.16], [0.08, 0.04], [0.3, 0.1], [0.5, 0.26], [0.58, 0.11], [0.86, 0.08]];
-  const GILLS = [[[0.67, -0.05], [0.65, 0.06]], [[0.63, -0.05], [0.61, 0.06]]];
-  const EYE = [0.8, -0.03];
-  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const sharkY = () => innerHeight * (rand() < 0.5 ? 0.16 + rand() * 0.14 : 0.42 + rand() * 0.16);
-  let shark = null, nextShark = performance.now() + 3500, lastT = 0;
+  // 星空水族館：由星星連成的海洋生物，每隔一段時間從夜空游過。
+  // 座標以身長為單位：游泳的生物頭朝右（x=1）、尾巴在左（x≈0）；y 向下。
+  // parts 是要連線的輪廓（kind 決定怎麼動），dots 是身上的星點，eyes 是金色的眼睛。
+  const ellipse = (cx, cy, rx, ry, n) => Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)];
+  });
+  const wag = (amp, speed) => (px, py, kind, t, ph) =>
+    [px, py + Math.sin(t * speed + ph - px * 3.2) * amp * (1 - Math.min(Math.max(px, 0), 1)) ** 2];
 
-  function spawnShark(t) {
+  const CREATURES = [
+    {
+      key: 'shark', zh: '鯊鯊座', size: 1, secs: [17, 23], move: 'swim',
+      parts: [{ closed: true, pts: [[1, 0.02], [0.82, -0.09], [0.58, -0.12], [0.48, -0.32], [0.4, -0.12], [0.22, -0.08], [0.08, -0.03],
+        [-0.08, -0.24], [0, 0], [-0.05, 0.16], [0.08, 0.04], [0.3, 0.1], [0.5, 0.26], [0.58, 0.11], [0.86, 0.08]] },
+      { pts: [[0.67, -0.05], [0.65, 0.06]] }, { pts: [[0.63, -0.05], [0.61, 0.06]] }],
+      big: [[1, 0.02], [0.48, -0.32], [-0.08, -0.24], [0.5, 0.26]],
+      eyes: [[0.8, -0.03]], label: [0.45, 0.42], trail: [0.02, 0],
+      deform: wag(0.075, 0.0042),
+    },
+    {
+      key: 'whaleshark', zh: '鯨鯊座', size: 1.35, secs: [26, 32], move: 'swim',
+      parts: [{ closed: true, pts: [[1, -0.04], [0.92, -0.11], [0.7, -0.15], [0.5, -0.15], [0.41, -0.3], [0.35, -0.14], [0.2, -0.08],
+        [0.16, -0.13], [0.12, -0.06], [-0.06, -0.3], [0.02, -0.01], [-0.02, 0.18], [0.1, 0.05], [0.3, 0.11], [0.52, 0.27],
+        [0.62, 0.12], [0.92, 0.09], [1, 0.05]] },
+      { pts: [[0.88, -0.08], [0.6, -0.11], [0.3, -0.06]] }, { pts: [[1, 0.01], [0.9, 0.03]] }],
+      dots: [[0.84, -0.04], [0.76, -0.08], [0.76, 0.02], [0.67, -0.1], [0.67, -0.01], [0.67, 0.07], [0.58, -0.07], [0.58, 0.03],
+        [0.49, -0.09], [0.49, 0.01], [0.49, 0.08], [0.4, -0.06], [0.4, 0.03], [0.31, -0.02], [0.24, 0.02]],
+      big: [[1, -0.04], [0.41, -0.3], [-0.06, -0.3], [0.52, 0.27]],
+      eyes: [[0.93, -0.01]], label: [0.45, 0.42], trail: [0.02, 0],
+      deform: wag(0.05, 0.003),
+    },
+    {
+      key: 'manta', zh: '魔鬼魟座', size: 0.85, secs: [20, 26], move: 'swim',
+      parts: [{ closed: true, pts: [[1, -0.08], [0.92, -0.04], [0.74, -0.2], [0.56, -0.52], [0.46, -0.24], [0.37, -0.05], [0.37, 0.05],
+        [0.46, 0.24], [0.56, 0.52], [0.74, 0.2], [0.92, 0.04], [1, 0.08], [0.94, 0]] },
+      { kind: 'tail', pts: [[0.37, 0], [0.24, 0], [0.1, 0], [-0.05, 0]] }, { pts: [[0.88, 0], [0.5, 0]] }],
+      dots: [[0.66, -0.13], [0.66, 0.13]],
+      big: [[0.56, -0.52], [0.56, 0.52], [1, -0.08], [1, 0.08]],
+      eyes: [[0.9, -0.07], [0.9, 0.07]], label: [0.55, 0.66], trail: [-0.05, 0], trailKind: 'tail',
+      deform(px, py, kind, t, ph) {
+        if (kind === 'tail') return [px, py + Math.sin(t * 0.004 - px * 8 + ph) * 0.035 * (0.4 - px)];
+        const flap = 0.5 + 0.5 * Math.sin(t * 0.0026 + ph);
+        const k = Math.min(Math.abs(py) / 0.5, 1);
+        return [px - 0.05 * flap * k, py * (1 - 0.32 * flap * k)];
+      },
+    },
+    {
+      key: 'turtle', zh: '海龜座', size: 0.75, secs: [24, 30], move: 'swim',
+      parts: [{ closed: true, pts: ellipse(0.5, 0, 0.28, 0.2, 12) },
+        { closed: true, pts: [[0.38, 0], [0.45, -0.09], [0.58, -0.09], [0.65, 0], [0.58, 0.09], [0.45, 0.09]] },
+        { pts: [[0.77, -0.06], [0.9, -0.06], [0.98, 0], [0.9, 0.06], [0.77, 0.06]] },
+        { kind: 'front', pts: [[0.66, -0.16], [0.56, -0.47], [0.52, -0.19]] }, { kind: 'front', pts: [[0.66, 0.16], [0.56, 0.47], [0.52, 0.19]] },
+        { kind: 'back', pts: [[0.32, -0.14], [0.18, -0.27], [0.26, -0.09]] }, { kind: 'back', pts: [[0.32, 0.14], [0.18, 0.27], [0.26, 0.09]] },
+        { pts: [[0.22, 0], [0.1, 0]] }],
+      big: [[0.56, -0.47], [0.56, 0.47], [0.98, 0]],
+      eyes: [[0.9, -0.035], [0.9, 0.035]], label: [0.5, 0.6], trail: [0.1, 0],
+      deform(px, py, kind, t, ph) {
+        if (kind !== 'front' && kind !== 'back') return [px, py];
+        const k = Math.min(Math.abs(py) / 0.45, 1), stroke = Math.sin(t * 0.0024 + ph + (kind === 'back' ? 1.8 : 0));
+        return [px + (kind === 'front' ? 0.09 : 0.05) * stroke * k, py * (1 - 0.12 * Math.abs(stroke) * k)];
+      },
+    },
+    {
+      key: 'jelly', zh: '水母座', size: 0.7, secs: [22, 28], move: 'rise',
+      // 傘：從左緣經過頂端到右緣的半橢圓，再沿著波浪狀的傘緣回到左邊
+      parts: [{ closed: true, pts: [...Array.from({ length: 9 }, (_, i) => {
+        const ang = Math.PI + (i * Math.PI) / 8;
+        return [+(0.5 + 0.22 * Math.cos(ang)).toFixed(3), +(-0.05 + 0.3 * Math.sin(ang)).toFixed(3)];
+      }), [0.67, -0.02], [0.61, -0.05], [0.56, -0.02], [0.5, -0.05], [0.44, -0.02], [0.39, -0.05], [0.33, -0.02]] },
+      ...[0.36, 0.45, 0.55, 0.64].map((x, i) => ({ kind: 'tentacle', pts: [0, 1, 2, 3, 4].map((j) => [x + (i - 1.5) * 0.02 * j, -0.02 + j * 0.12]) }))],
+      big: [[0.5, -0.35]],
+      eyes: [], label: [0.5, 0.62], trail: [0.5, 0.45], trailKind: 'tentacle',
+      deform(px, py, kind, t, ph) {
+        const pulse = Math.sin(t * 0.004 + ph);
+        if (kind === 'tentacle') return [px + Math.sin(t * 0.003 + py * 7 + ph + px * 9) * 0.04 * (py + 0.05) * 2, py * (1 + 0.06 * pulse)];
+        return [0.5 + (px - 0.5) * (1 + 0.1 * pulse), py * (1 - 0.06 * pulse)];
+      },
+    },
+    {
+      key: 'seahorse', zh: '海馬座', size: 0.78, secs: [28, 34], move: 'swim',
+      parts: [{ closed: true, pts: [[0.8, -0.39], [0.63, -0.42], [0.53, -0.5], [0.45, -0.42], [0.42, -0.26], [0.37, -0.06], [0.39, 0.12],
+        [0.47, 0.27], [0.56, 0.34], [0.61, 0.28], [0.55, 0.22], [0.5, 0.14], [0.55, -0.03], [0.56, -0.2], [0.61, -0.32], [0.8, -0.35]] },
+      { kind: 'fin', pts: [[0.39, -0.14], [0.3, -0.09], [0.38, -0.01]] }],
+      big: [[0.8, -0.37], [0.53, -0.5], [0.56, 0.34]],
+      eyes: [[0.57, -0.4]], label: [0.5, 0.52], trail: [0.56, 0.34],
+      deform(px, py, kind, t) { return kind === 'fin' ? [px + Math.sin(t * 0.02) * 0.015, py] : [px, py]; },
+    },
+  ];
+
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const swimY = () => innerHeight * (rand() < 0.5 ? 0.16 + rand() * 0.14 : 0.42 + rand() * 0.16);
+  let creature = null, lastKey = null, nextCreature = performance.now() + 3500, lastT = 0;
+
+  function spawnCreature(t, key) {
+    const pool = CREATURES.filter((c) => c.key !== lastKey);
+    const def = CREATURES.find((c) => c.key === key) || (lastKey ? pool[Math.floor(rand() * pool.length)] : CREATURES[0]);
+    lastKey = def.key;
+    const len = clamp(Math.min(innerWidth, innerHeight) * 0.5, 150, 340) * def.size;
+    const dur = (def.secs[0] + rand() * (def.secs[1] - def.secs[0])) * 1000;
     const dir = rand() < 0.5 ? 1 : -1;
-    const len = clamp(Math.min(innerWidth, innerHeight) * 0.5, 150, 340);
-    shark = {
-      dir, len, x: dir > 0 ? -len : innerWidth + len, y: sharkY(),
-      v: (innerWidth + len * 2) / (17000 + rand() * 6000), ph: rand() * 6, trail: [],
-    };
-    nextShark = t + 1e12;
+    creature = def.move === 'rise'
+      ? { def, len, dir, x: innerWidth * (0.15 + rand() * 0.7), y: innerHeight + len * 0.6, vx: dir * 0.004, vy: -(innerHeight + len * 1.3) / dur, ph: rand() * 6, trail: [] }
+      : { def, len, dir, x: dir > 0 ? -len * 0.7 : innerWidth + len * 0.7, y: swimY(), vx: (dir * (innerWidth + len * 1.4)) / dur, vy: 0, ph: rand() * 6, trail: [] };
+    nextCreature = t + 1e12;
   }
 
-  function drawShark(t, dt) {
-    const s = shark;
-    s.x += s.dir * s.v * dt;
-    if ((s.dir > 0 && s.x > innerWidth + s.len) || (s.dir < 0 && s.x < -s.len)) {
-      shark = null;
-      nextShark = t + 25000 + rand() * 20000;
+  function drawCreature(t, dt) {
+    const c = creature, d = c.def;
+    c.x += c.vx * dt;
+    c.y += c.vy * dt;
+    const gone = d.move === 'rise' ? c.y < -c.len * 0.7 : (c.dir > 0 ? c.x > innerWidth + c.len * 0.7 : c.x < -c.len * 0.7);
+    if (gone) {
+      creature = null;
+      nextCreature = t + 18000 + rand() * 17000;
       return;
     }
-    const edge = Math.min(s.x, innerWidth - s.x);
-    const a = clamp((edge + s.len * 0.3) / (s.len * 0.8), 0, 1) * 0.85;
-    const bob = Math.sin(t * 0.0009 + s.ph) * 10;
-    const pos = ([px, py]) => {
-      const wag = Math.sin(t * 0.0042 + s.ph - px * 3.2) * 0.075 * (1 - Math.min(px, 1)) ** 2;
-      return [s.x + s.dir * (px - 0.5) * s.len - mouse.x * 18, s.y + (py + wag) * s.len + bob - mouse.y * 18];
+    const edge = d.move === 'rise' ? Math.min(c.y, innerHeight - c.y) : Math.min(c.x, innerWidth - c.x);
+    const a = clamp((edge + c.len * 0.3) / (c.len * 0.8), 0, 1) * 0.85;
+    const bob = Math.sin(t * (d.key === 'seahorse' ? 0.0016 : 0.0009) + c.ph) * (d.key === 'seahorse' ? 22 : 10);
+    const flip = d.move === 'rise' ? 1 : c.dir;
+    const pos = (p, kind) => {
+      const [px, py] = d.deform(p[0], p[1], kind, t, c.ph);
+      return [c.x + flip * (px - 0.5) * c.len - mouse.x * 18, c.y + py * c.len + bob - mouse.y * 18];
     };
-    const pts = SHARK.map(pos);
+    const parts = d.parts.map((part) => ({ ...part, xy: part.pts.map((p) => pos(p, part.kind)) }));
 
-    // 尾巴後方留下淡淡的星塵
-    if (rand() < 0.5) s.trail.push({ p: pos([0, 0]), life: 1 });
-    s.trail = s.trail.filter((d) => (d.life -= 0.012) > 0);
-    for (const d of s.trail) {
-      ctx.globalAlpha = d.life * a * 0.7;
-      ctx.drawImage(SPRITES.star, d.p[0] - 4, d.p[1] - 4, 8, 8);
+    // 身後留下淡淡的星塵
+    if (rand() < 0.45) c.trail.push({ p: pos(d.trail, d.trailKind), life: 1 });
+    c.trail = c.trail.filter((s) => (s.life -= 0.012) > 0);
+    for (const s of c.trail) {
+      ctx.globalAlpha = s.life * a * 0.7;
+      ctx.drawImage(SPRITES.star, s.p[0] - 4, s.p[1] - 4, 8, 8);
     }
 
-    // 身體裡一層很淡的光，讓輪廓讀得出是一隻鯊魚
-    ctx.globalAlpha = a * 0.5;
-    const [cx, cy] = pos([0.55, 0]);
-    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, s.len * 0.55);
+    // 主體裡一層很淡的光，讓輪廓讀得出形狀
+    const body = parts[0].xy;
+    const [gx, gy] = pos([0.5, d.move === 'rise' ? -0.18 : 0]);
+    const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, c.len * 0.55);
     glow.addColorStop(0, 'rgba(120, 170, 255, .16)');
     glow.addColorStop(1, 'rgba(120, 170, 255, 0)');
+    ctx.globalAlpha = a * 0.5;
     ctx.fillStyle = glow;
     ctx.beginPath();
-    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    body.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
     ctx.closePath();
     ctx.fill();
 
@@ -138,19 +229,43 @@ const sky = (() => {
     ctx.strokeStyle = 'rgba(200, 222, 255, .62)';
     ctx.lineWidth = 1.4;
     ctx.lineJoin = 'round';
-    ctx.stroke();
     ctx.beginPath();
-    for (const [p, q] of GILLS) { const [x1, y1] = pos(p), [x2, y2] = pos(q); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); }
+    for (const part of parts) {
+      part.xy.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      if (part.closed) ctx.closePath();
+    }
     ctx.stroke();
-    pts.forEach(([x, y], i) => {
-      const tw = 0.7 + 0.3 * Math.sin(t * 0.003 + i * 1.7);
-      const size = (i === 3 || i === 7 || i === 0 || i === 12 ? 20 : 13) * tw;
-      ctx.globalAlpha = a * tw;
+
+    const isBig = (p) => (d.big || []).some(([bx, by]) => bx === p[0] && by === p[1]);
+    let n = 0;
+    for (const part of parts) {
+      part.xy.forEach(([x, y], i) => {
+        const tw = 0.7 + 0.3 * Math.sin(t * 0.003 + n++ * 1.7);
+        const size = (isBig(part.pts[i]) ? 20 : part.pts.length > 10 ? 11 : 13) * tw;
+        ctx.globalAlpha = a * tw;
+        ctx.drawImage(SPRITES.star, x - size / 2, y - size / 2, size, size);
+      });
+    }
+    for (const p of d.dots || []) {
+      const [x, y] = pos(p);
+      const size = 7 + 2 * Math.sin(t * 0.004 + p[0] * 20);
+      ctx.globalAlpha = a * 0.85;
       ctx.drawImage(SPRITES.star, x - size / 2, y - size / 2, size, size);
-    });
-    const [ex, ey] = pos(EYE);
+    }
     ctx.globalAlpha = a;
-    ctx.drawImage(SPRITES.gold, ex - 8, ey - 8, 16, 16);
+    for (const p of d.eyes) { const [x, y] = pos(p); ctx.drawImage(SPRITES.gold, x - 8, y - 8, 16, 16); }
+
+    // 星座名稱
+    const [lx, ly] = pos(d.label);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = a * 0.7;
+    ctx.fillStyle = '#c9d6ff';
+    ctx.font = '12px "Noto Serif TC", serif';
+    ctx.textAlign = 'center';
+    ctx.letterSpacing = '4px';
+    ctx.fillText(d.zh, lx, ly);
+    ctx.letterSpacing = '0px';
+    ctx.globalCompositeOperation = 'lighter';
   }
 
   function init() {
@@ -203,14 +318,14 @@ const sky = (() => {
       ctx.stroke();
       ctx.drawImage(SPRITES.star, m.x - 6, m.y - 6, 12, 12);
     }
-    if (!shark && !calm && t > nextShark) spawnShark(t);
-    if (shark) drawShark(t, dt);
+    if (!creature && !calm && t > nextCreature) spawnCreature(t);
+    if (creature) drawCreature(t, dt);
     ctx.globalAlpha = 1;
     requestAnimationFrame(frame);
   }
   init();
   requestAnimationFrame(frame);
-  return { init, spawnShark: () => spawnShark(performance.now()) };
+  return { init, spawn: (key) => spawnCreature(performance.now(), key) };
 })();
 
 /* ================= 粒子特效 ================= */

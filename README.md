@@ -19,4 +19,4 @@ tarot-images use to create a html platform for tarot to do the magic. Only for p
 - **每日一牌日曆**：每日一牌一天只能抽一張，抽過的牌排成月曆，顯示抽牌天數、連續天數與本月的元素、花色、逆位統計（在 📖 裡切換）
 - **存成圖片**：把牌陣與重點解讀合成一張 1080×1920 的直式圖片，可直接分享或下載
 
-檔案：`index.html`、`style.css`、`app.js`（互動與動畫）、`cards.js`（牌與牌陣資料）、`meanings.js`（詳細牌義）、`reading.js`（解讀文字組合），`thumbs/` 是給網頁用的縮圖。
+檔案：`index.html`、`style.css`、`app.js`（互動與動畫）、`cards.js`（牌與牌陣資料）、`meanings.js`（詳細牌義）、`reading.js`（解讀文字組合），`cards/` 是網頁用的牌卡圖片（由 `tarot-v3/` 的鯊鯊塔羅原始 PNG 縮小而來：`cards/*.jpg` 大圖、`cards/thumb/` 縮圖、`cards/back.jpg` 牌背＝月蝕珍珠貝款）。根目錄的舊 JPEG 已不再使用。

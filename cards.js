@@ -19,7 +19,7 @@ const MAJORS = [
   ['Hermit', '隱者', 'The Hermit', 'earth', '內省、獨處、尋找真理', '孤立、逃避'],
   ['WheelOfFortune', '命運之輪', 'Wheel of Fortune', 'fire', '轉機、循環、命運', '逆勢、抗拒改變'],
   ['Justice', '正義', 'Justice', 'air', '公平、真相、因果', '不公、逃避責任'],
-  ['HangedMan', '吊人', 'The Hanged Man', 'water', '換個角度、暫停、臣服', '拖延、無謂犧牲'],
+  ['HangedMan', '倒吊人', 'The Hanged Man', 'water', '換個角度、暫停、臣服', '拖延、無謂犧牲'],
   ['Death', '死神', 'Death', 'water', '結束、轉化、新生', '抗拒結束、停滯'],
   ['Temperance', '節制', 'Temperance', 'fire', '平衡、調和、耐心', '失衡、過度'],
   ['Devil', '惡魔', 'The Devil', 'earth', '束縛、慾望、執著', '解脫、看清枷鎖'],

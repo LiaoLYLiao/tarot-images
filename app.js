@@ -4,7 +4,7 @@ const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const DEG = Math.PI / 180;
-const CARD_RATIO = 1.9;
+const CARD_RATIO = 1642 / 958;
 
 function rand() {
   const a = new Uint32Array(1);
@@ -19,8 +19,8 @@ function shuffled(arr) {
   }
   return a;
 }
-const thumb = (card) => `thumbs/${card.file}.jpg`;
-const full = (card) => `${card.file}.jpeg`;
+const thumb = (card) => `cards/thumb/${card.file}.jpg`;
+const full = (card) => `cards/${card.file}.jpg`;
 
 const state = {
   spread: 'theme',
@@ -39,52 +39,7 @@ const state = {
 };
 
 /* ================= 牌背 ================= */
-(function makeCardBack() {
-  const star = [];
-  for (let i = 0; i < 16; i++) {
-    const a = (Math.PI * i) / 8 - Math.PI / 2;
-    const r = i % 2 ? 10 : i % 4 === 0 ? 46 : 28;
-    star.push(`${(100 + r * Math.cos(a)).toFixed(1)},${(190 + r * Math.sin(a)).toFixed(1)}`);
-  }
-  let seed = 7;
-  const prng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  let dots = '';
-  for (let i = 0; i < 46; i++) {
-    const x = 20 + prng() * 160, y = 22 + prng() * 336;
-    if (Math.hypot(x - 100, y - 190) < 70) continue;
-    dots += `<circle cx='${x.toFixed(1)}' cy='${y.toFixed(1)}' r='${(0.4 + prng() * 1.1).toFixed(2)}' fill='#f8e3a1' opacity='${(0.35 + prng() * 0.6).toFixed(2)}'/>`;
-  }
-  let rays = '';
-  for (let i = 0; i < 12; i++) {
-    const a = (Math.PI * i) / 6;
-    rays += `<line x1='${100 + 12 * Math.cos(a)}' y1='${318 + 12 * Math.sin(a)}' x2='${100 + 18 * Math.cos(a)}' y2='${318 + 18 * Math.sin(a)}'/>`;
-  }
-  const corners = [[24, 24], [176, 24], [24, 356], [176, 356]]
-    .map(([x, y]) => `<path d='M${x} ${y - 5}L${x + 5} ${y}L${x} ${y + 5}L${x - 5} ${y}Z' fill='url(#au)'/>`).join('');
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 380'>
-<defs>
-<radialGradient id='bg' cx='50%' cy='50%' r='75%'><stop offset='0' stop-color='#2d2266'/><stop offset='.6' stop-color='#151036'/><stop offset='1' stop-color='#09081f'/></radialGradient>
-<linearGradient id='au' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fbe9b0'/><stop offset='.5' stop-color='#c9a14a'/><stop offset='1' stop-color='#f3d68a'/></linearGradient>
-<radialGradient id='halo'><stop offset='0' stop-color='#f8e3a1' stop-opacity='.45'/><stop offset='1' stop-color='#f8e3a1' stop-opacity='0'/></radialGradient>
-</defs>
-<rect width='200' height='380' rx='12' fill='url(#bg)'/>
-${dots}
-<rect x='9' y='9' width='182' height='362' rx='8' fill='none' stroke='url(#au)' stroke-width='2'/>
-<rect x='15' y='15' width='170' height='350' rx='5' fill='none' stroke='url(#au)' stroke-width='.6' opacity='.7'/>
-${corners}
-<circle cx='100' cy='190' r='70' fill='url(#halo)'/>
-<circle cx='100' cy='190' r='62' fill='none' stroke='url(#au)' stroke-width='1'/>
-<circle cx='100' cy='190' r='55' fill='none' stroke='url(#au)' stroke-width='.6' stroke-dasharray='2 4'/>
-<polygon points='${star.join(' ')}' fill='url(#au)'/>
-<circle cx='100' cy='190' r='5' fill='#151036'/>
-<circle cx='100' cy='62' r='15' fill='url(#au)'/><circle cx='107' cy='57' r='13' fill='#1a1440'/>
-<circle cx='100' cy='318' r='8' fill='url(#au)'/>
-<g stroke='#e8c877' stroke-width='1.4' stroke-linecap='round'>${rays}</g>
-<line x1='100' y1='92' x2='100' y2='122' stroke='url(#au)' stroke-width='.6'/>
-<line x1='100' y1='258' x2='100' y2='290' stroke='url(#au)' stroke-width='.6'/>
-</svg>`;
-  document.documentElement.style.setProperty('--back', `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
-})();
+document.documentElement.style.setProperty('--back', 'url("cards/back.jpg")');
 
 /* ================= 發光貼圖（給兩張 canvas 共用） ================= */
 function makeSprite(color) {

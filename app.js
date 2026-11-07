@@ -240,9 +240,11 @@ const sound = (() => {
 /* ================= 版面計算 ================= */
 const headerBottom = () => $('#top').getBoundingClientRect().bottom;
 
+// 牌堆放在標題列與下方問題區之間的空間正中央，依可用高度縮放
 function stackPos(i) {
-  const w = clamp(innerWidth * 0.16, 96, 150);
-  return { x: innerWidth / 2, y: innerHeight * 0.42 - i * 0.25, w, h: w * CARD_RATIO, rot: 0 };
+  const top = headerBottom() + 16, bottom = $('#intro').offsetTop - 20;
+  const h = Math.max(120, Math.min((bottom - top) * 0.8, 380, innerWidth * 0.46 * CARD_RATIO));
+  return { x: innerWidth / 2, y: (top + bottom) / 2 + 3 - i * 0.08, w: h / CARD_RATIO, h, rot: 0 };
 }
 
 function fanGeom(n = state.fanN || CARDS.length) {
@@ -346,7 +348,8 @@ function updateHint() {
     hint.style.opacity = 1;
   } else if (state.phase === 'shuffling') {
     hint.textContent = '洗牌中，讓問題在心中沉澱…';
-    hint.style.top = `${innerHeight * 0.42 + stackPos(0).h / 2 + 30}px`;
+    const s = stackPos(0);
+    hint.style.top = `${s.y + s.h / 2 + 24}px`;
     hint.style.opacity = 1;
   } else {
     hint.style.opacity = 0;
@@ -429,7 +432,7 @@ async function startShuffle() {
       const side = rand() < 0.5 ? -1 : 1;
       el.style.transitionDuration = '.28s';
       el.style.transitionDelay = `${i * 2}ms`;
-      place(el, { ...stackPos(i), x: s.x + side * s.w * (0.55 + rand() * 0.15), y: s.y - i * 0.25 + (rand() - 0.5) * 10, rot: side * (6 + rand() * 6) });
+      place(el, { ...stackPos(i), x: s.x + side * Math.min(s.w * (0.55 + rand() * 0.15), innerWidth / 2 - s.w / 2 - 6), y: s.y - i * 0.25 + (rand() - 0.5) * 10, rot: side * (6 + rand() * 6) });
     });
     await sleep(430);
     const table = $('#table');
@@ -937,8 +940,9 @@ function updateIntro() {
   const done = state.spread === 'one' && todayDaily();
   $('#shuffleBtn').textContent = done ? '✦ 查看今天的牌' : '✦ 洗牌';
   $('#question').hidden = !!done;
-  $('#topics').hidden = !!done;
-  $('#intro .sub').textContent = done ? '每日一牌一天只能抽一張，明天再來吧 · 可以在 📖 裡看日曆' : '點擊牌堆或按下洗牌 · 手機也可以搖一搖';
+  $('#topicBox').hidden = !!done;
+  if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
+  $('#intro .sub').textContent = done ? '每日一牌一天只能抽一張，明天再來吧 · 日曆在右上角的紀錄裡' : '點擊牌堆或按下洗牌 · 手機也可以搖一搖';
 }
 
 const tabsHTML = (on) => `<div class="tabs">
@@ -1311,7 +1315,7 @@ function setTopic(key) {
   state.topic = TOPICS[key] ? key : 'general';
   document.querySelectorAll('#topics button').forEach((b) => b.classList.toggle('on', b.dataset.topic === state.topic));
 }
-$('#topics').innerHTML = Object.entries(TOPICS).map(([k, t]) => `<button data-topic="${k}">${t.icon} ${t.zh}</button>`).join('');
+$('#topics').innerHTML = Object.entries(TOPICS).map(([k, t]) => `<button data-topic="${k}">${t.zh}</button>`).join('');
 $('#topics').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
@@ -1321,9 +1325,14 @@ $('#topics').addEventListener('click', (e) => {
 setTopic(store.get('starTarot.topic', 'general'));
 $('#againBtn').addEventListener('click', () => resetReading(false));
 $('#galleryBtn').addEventListener('click', () => (gallery.isOpen ? gallery.close() : gallery.open()));
+const SOUND_ICON = {
+  on: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.4L12 6v12l-4.6-3.5H4z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6M18.2 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>',
+  off: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.4L12 6v12l-4.6-3.5H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>',
+};
 $('#soundBtn').addEventListener('click', (e) => {
   state.muted = !state.muted;
-  e.currentTarget.textContent = state.muted ? '🔇' : '🔊';
+  e.currentTarget.innerHTML = state.muted ? SOUND_ICON.off : SOUND_ICON.on;
+  e.currentTarget.classList.toggle('off', state.muted);
 });
 $('#spreadPicker').addEventListener('click', (e) => {
   const b = e.target.closest('button');

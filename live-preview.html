@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>牌面活起來 · 樣本</title>
+<meta name="theme-color" content="#07061a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500&family=Noto+Serif+TC:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #f4ecd8; --muted: #b8b0d0; --gold: #e8c877; --line: rgba(232, 200, 119, .3); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--ink); font-family: 'Noto Serif TC', serif;
+    background:
+      radial-gradient(ellipse 60% 45% at 20% 20%, rgba(110, 60, 170, .28), transparent 70%),
+      radial-gradient(ellipse 55% 40% at 85% 75%, rgba(40, 90, 170, .25), transparent 70%),
+      #07061a;
+  }
+  header { padding: 28px 16px 8px; text-align: center; }
+  h1 { margin: 0; font-family: 'Cinzel', serif; font-weight: 500; letter-spacing: .2em; color: var(--gold); font-size: 22px; }
+  .sub { margin: 8px 0 16px; color: var(--muted); font-size: 13px; }
+  .toggle {
+    padding: 9px 22px; border-radius: 999px; border: 1px solid var(--gold); font: inherit; font-size: 14px;
+    color: #1a1230; background: linear-gradient(135deg, #f3d68a, #b8913f); cursor: pointer;
+  }
+  .toggle.off { color: var(--gold); background: none; }
+  .grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px 22px; padding: 20px 16px 48px; }
+  figure { margin: 0; width: min(240px, 42vw); text-align: center; }
+  .card {
+    position: relative; aspect-ratio: 958 / 1642; border-radius: 5.5% / 3.2%; overflow: hidden;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, .55), 0 0 40px rgba(232, 200, 119, .18);
+  }
+  .card img { width: 100%; height: 100%; display: block; object-fit: cover; }
+  figcaption { margin-top: 10px; }
+  figcaption b { display: block; color: var(--gold); font-weight: 600; letter-spacing: .1em; }
+  figcaption span { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>LIVE CARDS</h1>
+  <p class="sub">牌面活起來 · 樣本（依牌的類型有不同的動態）</p>
+  <button class="toggle" id="toggle">動態：開</button>
+</header>
+<main class="grid" id="grid"></main>
+<script src="live.js"></script>
+<script>
+  const SAMPLES = [
+    { file: 'Sun', name: '太陽', type: '大牌', note: '上方灑下的光束、漂浮光點', card: { major: true } },
+    { file: 'TenCups', name: '聖杯十', type: '聖杯', note: '氣泡往上冒', card: { suit: 'Cups' } },
+    { file: 'KingWands', name: '權杖國王', type: '權杖', note: '火星飄升、底部暖光', card: { suit: 'Wands' } },
+    { file: 'AceSwords', name: '寶劍王牌', type: '寶劍', note: '刀光掃過、一陣陣的風', card: { suit: 'Swords' } },
+    { file: 'NinePentacles', name: '錢幣九', type: '錢幣', note: '金色閃光、落下的金粉', card: { suit: 'Pentacles' } },
+  ];
+  const grid = document.getElementById('grid');
+  for (const s of SAMPLES) {
+    const fig = document.createElement('figure');
+    fig.innerHTML = `<div class="card"><img src="cards/${s.file}.jpg" alt="${s.name}"></div>
+      <figcaption><b>${s.name}</b><span>${s.type}：${s.note}</span></figcaption>`;
+    grid.appendChild(fig);
+    live.attach(fig.querySelector('.card'), s.card);
+  }
+  let on = true;
+  document.getElementById('toggle').addEventListener('click', (e) => {
+    on = !on;
+    live.setEnabled(on);
+    e.currentTarget.textContent = `動態：${on ? '開' : '關'}`;
+    e.currentTarget.classList.toggle('off', !on);
+  });
+</script>
+</body>
+</html>

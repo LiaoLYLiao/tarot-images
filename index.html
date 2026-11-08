@@ -32,38 +32,40 @@
   </div>
 </header>
 
-<section id="landing" class="screen">
+<section id="home" class="screen">
   <div class="hero">
     <p class="eyebrow">✦ 鯊鯊的星空占卜 ✦</p>
     <h1>今天，想問星星什麼？</h1>
-    <p class="hero-sub">選一個情境，鯊鯊們會為你洗牌</p>
   </div>
-  <div class="scenes">
-    <button class="scene-tile daily" data-scene="daily"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 6.5l1.4 3.6 3.6 1.4-3.6 1.4L12 16.5l-1.4-3.6L7 11.5l3.6-1.4z"/></svg><span class="t">每日一牌</span><span class="d"></span><span class="badge">今天還沒抽</span></button>
-    <button class="scene-tile" data-scene="love"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5s-7-4.3-7-9.4A3.9 3.9 0 0 1 12 7.7a3.9 3.9 0 0 1 7 2.4c0 5.1-7 9.4-7 9.4z"/></svg><span class="t">感情</span><span class="d">心意、關係與未來</span></button>
-    <button class="scene-tile" data-scene="career"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="2"/><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8M4 12.5h16"/></svg><span class="t">事業</span><span class="d">工作、方向與抉擇</span></button>
-    <button class="scene-tile" data-scene="study"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 9 12 5l8.5 4L12 13z"/><path d="M7 11v4c1.5 1.4 3.2 2 5 2s3.5-.6 5-2v-4M20.5 9v5"/></svg><span class="t">學業</span><span class="d">考試、讀書與選擇</span></button>
-    <button class="scene-tile" data-scene="self"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20v-7"/><path d="M12 13c0-3.5-2.5-6-6.5-6 0 3.8 2.6 6 6.5 6zM12 13c0-3.5 2.5-6 6.5-6 0 3.8-2.6 6-6.5 6z"/></svg><span class="t">自我成長</span><span class="d">情緒、內在與身心靈</span></button>
-    <button class="scene-tile" data-scene="general"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10.5" r="6.5"/><path d="M7.5 17.5h9l1 2.5h-11z"/><path d="M9.5 8.5a3 3 0 0 1 2.5-1.5"/></svg><span class="t">綜合</span><span class="d">任何想問的事</span></button>
+  <div id="orbit" aria-label="選擇情境">
+    <svg class="orbit-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <ellipse cx="50" cy="50" rx="42" ry="30" pathLength="100"/>
+      <ellipse class="comet" cx="50" cy="50" rx="42" ry="30" pathLength="100"/>
+    </svg>
+    <div class="orbit-card"><div class="oc-face"></div></div>
+    <button class="orb" data-scene="daily"><span class="orb-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 6.5l1.4 3.6 3.6 1.4-3.6 1.4L12 16.5l-1.4-3.6L7 11.5l3.6-1.4z"/></svg></span><span class="orb-name">每日一牌</span></button>
+    <button class="orb" data-scene="love"><span class="orb-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5s-7-4.3-7-9.4A3.9 3.9 0 0 1 12 7.7a3.9 3.9 0 0 1 7 2.4c0 5.1-7 9.4-7 9.4z"/></svg></span><span class="orb-name">感情</span></button>
+    <button class="orb" data-scene="career"><span class="orb-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="2"/><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8M4 12.5h16"/></svg></span><span class="orb-name">事業</span></button>
+    <button class="orb" data-scene="study"><span class="orb-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 9 12 5l8.5 4L12 13z"/><path d="M7 11v4c1.5 1.4 3.2 2 5 2s3.5-.6 5-2v-4M20.5 9v5"/></svg></span><span class="orb-name">學業</span></button>
+    <button class="orb" data-scene="self"><span class="orb-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20v-7"/><path d="M12 13c0-3.5-2.5-6-6.5-6 0 3.8 2.6 6 6.5 6zM12 13c0-3.5 2.5-6 6.5-6 0 3.8-2.6 6-6.5 6z"/></svg></span><span class="orb-name">自我成長</span></button>
+    <button class="orb" data-scene="general"><span class="orb-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10.5" r="6.5"/><path d="M7.5 17.5h9l1 2.5h-11z"/><path d="M9.5 8.5a3 3 0 0 1 2.5-1.5"/></svg></span><span class="orb-name">綜合</span></button>
   </div>
-</section>
-
-<section id="scene" class="screen">
-  <button class="back-link" data-act="home">← 換個情境</button>
-  <div class="scene-head">
-    <span class="scene-icon"></span>
-    <h2></h2>
-    <p class="scene-sub"></p>
+  <div class="scene-info"><h2></h2><p></p></div>
+  <div id="sceneBody">
+    <div id="qBox">
+      <input id="question" maxlength="60" placeholder="寫下你的問題（可不填）" autocomplete="off">
+      <button id="ideaBtn" type="button" title="換一個問題靈感">✦ 靈感</button>
+    </div>
+    <p class="label">選擇牌陣 · 開始洗牌</p>
+    <div id="spreadRail"></div>
+    <div class="chooser-more">
+      <p class="label">更多牌陣</p>
+      <div class="chips"></div>
+    </div>
   </div>
-  <div id="qBox">
-    <input id="question" maxlength="60" placeholder="寫下你的問題（可不填）" autocomplete="off">
-    <button id="ideaBtn" type="button" title="換一個問題靈感">✦ 靈感</button>
-  </div>
-  <p class="label">選擇牌陣</p>
-  <div class="chooser-list"></div>
-  <div class="chooser-more">
-    <p class="label">更多牌陣</p>
-    <div class="chips"></div>
+  <div id="dailyBody" hidden>
+    <button class="primary" id="dailyBtn">✦ 抽今天的牌</button>
+    <p class="sub"></p>
   </div>
 </section>
 

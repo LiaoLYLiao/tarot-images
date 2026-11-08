@@ -35,7 +35,8 @@ const state = {
   topic: 'general',
   readingId: null,
   readingTime: 0,
-  screen: 'landing',
+  screen: 'home',
+  sceneKey: 'daily',
   muted: false,
 };
 
@@ -648,81 +649,153 @@ function onCardClick(e) {
   else if (el.classList.contains('flipped')) openModal(p);
 }
 
-/* ================= 起始頁與情境 ================= */
-const landing = $('#landing'), scene = $('#scene');
+/* ================= 起始頁：星座軌道選情境 ================= */
+const home = $('#home');
+const SCENE_KEYS = ['daily', 'love', 'career', 'study', 'self', 'general'];
 const SCENES = {
-  love: { sub: '靜下心，想著那個人或那段關係' },
-  career: { sub: '想著你工作上的處境或抉擇' },
-  study: { sub: '想著你的學習目標或考試' },
-  self: { sub: '把注意力放回自己身上' },
-  general: { sub: '在心中默念你想問的事' },
+  daily: { name: '每日一牌', sub: '今天的指引，一天只能抽一張' },
+  love: { name: '感情', sub: '靜下心，想著那個人或那段關係' },
+  career: { name: '事業', sub: '想著你工作上的處境或抉擇' },
+  study: { name: '學業', sub: '想著你的學習目標或考試' },
+  self: { name: '自我成長', sub: '把注意力放回自己身上' },
+  general: { name: '綜合', sub: '在心中默念你想問的事' },
 };
-const AURA = { daily: '120,90,220', general: '120,90,220', love: '255,110,170', career: '240,180,80', study: '80,180,255', self: '160,120,255' };
+const AURA = { daily: '232,200,119', general: '120,90,220', love: '255,110,170', career: '240,180,80', study: '80,180,255', self: '160,120,255' };
 
 function setAura(key) {
+  const rgb = AURA[key] || AURA.general;
   const aura = $('#aura');
   aura.style.opacity = 0;
-  setTimeout(() => { aura.style.setProperty('--aura', AURA[key] || AURA.general); aura.style.opacity = 1; }, 250);
+  setTimeout(() => { aura.style.setProperty('--aura', rgb); aura.style.opacity = 1; }, 250);
+  home.style.setProperty('--accent-rgb', rgb);
 }
 
 function showScreen(name) {
-  landing.classList.toggle('show', name === 'landing');
-  scene.classList.toggle('show', name === 'scene');
+  home.classList.toggle('show', name === 'home');
   state.screen = name;
+  if (name === 'home') orbit.start(); else orbit.stop();
 }
 
-function showLanding() {
-  const today = todayDaily();
-  const daily = landing.querySelector('[data-scene="daily"]');
-  daily.querySelector('.d').textContent = today ? `今天抽到「${CARD_BY_FILE[today.picks[0].file]?.zh || ''}」，點擊回顧` : '今天的指引，一天只能抽一張';
-  daily.querySelector('.badge').hidden = !!today;
-  daily.classList.toggle('done', !!today);
-  setAura('general');
-  showScreen('landing');
-}
+// 六個情境排在中央牌卡周圍的橢圓軌道上；轉到正前方（角度 90°）的就是選到的情境
+const orbit = (() => {
+  const root = $('#orbit'), orbs = [...root.querySelectorAll('.orb')], card = root.querySelector('.orbit-card');
+  const n = orbs.length, stepA = (Math.PI * 2) / n;
+  let base = Math.PI / 2, target = base, drag = null, raf = 0;
 
-function openScene(topic) {
-  setTopic(topic);
-  const t = TOPICS[topic];
-  scene.querySelector('.scene-icon').innerHTML = landing.querySelector(`[data-scene="${topic}"] svg`).outerHTML;
-  scene.querySelector('h2').textContent = topic === 'general' ? '綜合占卜' : `${t.zh}占卜`;
-  scene.querySelector('.scene-sub').textContent = SCENES[topic].sub;
-  const recs = TOPIC_SPREADS[topic];
+  function frame() {
+    base += (target - base) * 0.12;
+    const w = root.clientWidth, h = root.clientHeight;
+    const cx = w / 2, cy = h / 2, rx = w * 0.42, ry = h * 0.3;
+    orbs.forEach((o, i) => {
+      const a = base + i * stepA, depth = (Math.sin(a) + 1) / 2;
+      o.style.transform = `translate(${cx + Math.cos(a) * rx}px, ${cy + Math.sin(a) * ry}px) translate(-50%, -50%) scale(${(0.66 + depth * 0.44).toFixed(3)})`;
+      o.style.opacity = (0.3 + depth * 0.7).toFixed(2);
+      o.style.zIndex = depth > 0.55 ? 3 : 1;
+    });
+    raf = requestAnimationFrame(frame);
+  }
+
+  function select(i) {
+    const sel = ((i % n) + n) % n;
+    let t = Math.PI / 2 - sel * stepA; // 走最短的方向轉過去
+    while (t - base > Math.PI) t -= Math.PI * 2;
+    while (t - base < -Math.PI) t += Math.PI * 2;
+    target = t;
+    orbs.forEach((o, k) => o.classList.toggle('on', k === sel));
+    card.classList.remove('spin');
+    void card.offsetWidth;
+    card.classList.add('spin');
+    selectScene(SCENE_KEYS[sel]);
+  }
+
+  root.addEventListener('pointerdown', (e) => {
+    drag = { last: e.clientX, moved: 0 };
+    root.setPointerCapture(e.pointerId);
+  });
+  root.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.last;
+    drag.last = e.clientX;
+    drag.moved += Math.abs(dx);
+    base += dx * 0.012;
+    target = base;
+  });
+  root.addEventListener('pointerup', (e) => {
+    const d = drag;
+    drag = null;
+    if (!d) return;
+    if (d.moved < 6) {
+      const hit = document.elementsFromPoint(e.clientX, e.clientY).find((x) => x.classList?.contains('orb'));
+      if (hit) select(orbs.indexOf(hit));
+      return;
+    }
+    select(Math.round((Math.PI / 2 - base) / stepA)); // 放開時停在最靠近正前方的情境
+  });
+  // 鍵盤操作（Enter／空白鍵）
+  root.addEventListener('click', (e) => {
+    const o = e.target.closest('.orb');
+    if (o && e.detail === 0) select(orbs.indexOf(o));
+  });
+
+  return {
+    select: (key) => select(SCENE_KEYS.indexOf(key)),
+    start() { if (!raf) raf = requestAnimationFrame(frame); },
+    stop() { cancelAnimationFrame(raf); raf = 0; },
+  };
+})();
+
+function selectScene(key) {
+  state.sceneKey = key;
+  const info = SCENES[key];
+  home.querySelector('.scene-info h2').textContent = key === 'daily' ? info.name : `${info.name}占卜`;
+  home.querySelector('.scene-info p').textContent = info.sub;
+  setAura(key);
+  const daily = key === 'daily';
+  $('#sceneBody').hidden = daily;
+  $('#dailyBody').hidden = !daily;
+  if (daily) {
+    const today = todayDaily();
+    $('#dailyBtn').textContent = today ? `查看今天的牌：${CARD_BY_FILE[today.picks[0].file]?.zh || ''}` : '✦ 抽今天的牌';
+    $('#dailyBody .sub').textContent = today ? '每日一牌一天只能抽一張，明天再來吧' : '深呼吸，想著今天的自己';
+    return;
+  }
+  setTopic(key);
+  store.set('starTarot.scene', key);
+  const recs = TOPIC_SPREADS[key];
   const more = Object.keys(SPREADS).filter((k) => k !== 'one' && !recs.includes(k));
-  scene.querySelector('.chooser-list').innerHTML = recs.map((key, i) => {
-    const sp = SPREADS[key];
-    const badge = i === 0 ? (topic === 'general' ? '推薦' : `適合${t.zh}`) : '';
-    return `<button class="sp-tile ${i === 0 ? 'hot' : ''}" data-spread="${key}">
-      ${spreadDiagram(key)}
-      <span class="sp-text">
-        <span class="sp-name">${sp.name}<span class="sp-count">${sp.positions.length} 張</span>${badge ? `<span class="badge">${badge}</span>` : ''}</span>
-        <span class="sp-blurb">${sp.blurb}</span>
-      </span>
+  $('#spreadRail').innerHTML = recs.map((k, i) => {
+    const sp = SPREADS[k];
+    return `<button class="sp-card ${i === 0 ? 'hot' : ''}" data-spread="${k}">
+      ${i === 0 ? `<span class="badge">${key === 'general' ? '推薦' : `適合${info.name}`}</span>` : ''}
+      ${spreadDiagram(k)}
+      <span class="sp-name">${sp.name}<span class="sp-count">${sp.positions.length} 張</span></span>
+      <span class="sp-blurb">${sp.blurb}</span>
     </button>`;
   }).join('');
-  scene.querySelector('.chooser-more .chips').innerHTML = more.map((key) => `<button data-spread="${key}">${SPREADS[key].name}</button>`).join('');
-  scene.scrollTop = 0;
-  setAura(topic);
-  showScreen('scene');
+  $('#spreadRail').scrollLeft = 0;
+  home.querySelector('.chooser-more .chips').innerHTML = more.map((k) => `<button data-spread="${k}">${SPREADS[k].name}</button>`).join('');
 }
 
-landing.addEventListener('click', (e) => {
-  const b = e.target.closest('[data-scene]');
-  if (!b || state.phase !== 'idle') return;
-  sound.unlock();
-  if (b.dataset.scene !== 'daily') return openScene(b.dataset.scene);
-  const today = todayDaily();
-  if (today) return openSheet(readingFromHistory(today), 'calendar');
-  setTopic('general');
-  $('#question').value = '';
-  setAura('daily');
-  startReading('one');
-});
+// 回到起始頁；沒指定情境時，今天還沒抽每日一牌就先推薦它
+function showHome(key) {
+  showScreen('home');
+  orbit.select(key || (todayDaily() ? store.get('starTarot.scene', 'general') : 'daily'));
+  $('#orbit .orb[data-scene="daily"]').classList.toggle('nudge', !todayDaily());
+  home.scrollTop = 0;
+}
 
-scene.addEventListener('click', (e) => {
-  if (e.target.closest('[data-act="home"]')) return showLanding();
+home.addEventListener('click', (e) => {
+  if (state.phase !== 'idle') return;
   const b = e.target.closest('[data-spread]');
-  if (b && state.phase === 'idle') startReading(b.dataset.spread);
+  if (b) { sound.unlock(); startReading(b.dataset.spread); return; }
+  if (e.target.closest('#dailyBtn')) {
+    sound.unlock();
+    const today = todayDaily();
+    if (today) return openSheet(readingFromHistory(today), 'calendar');
+    setTopic('general');
+    $('#question').value = '';
+    startReading('one');
+  }
 });
 
 // 牌陣的縮圖：用直式排法畫出每個牌位的小方塊
@@ -1161,8 +1234,7 @@ async function resetReading(toLanding) {
   updateHeader();
   await sleep(450);
   buildStack();
-  if (toLanding || state.spread === 'one') showLanding();
-  else openScene(state.topic);
+  showHome(toLanding ? null : state.spread === 'one' ? 'daily' : state.topic);
 }
 
 /* ================= 全息效果 ================= */
@@ -1854,7 +1926,7 @@ const gallery = (() => {
 $('#question').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.currentTarget.blur(); });
 $('#revealAllBtn').addEventListener('click', revealAll);
 $('#homeBtn').addEventListener('click', () => {
-  if (state.phase === 'idle') showLanding();
+  if (state.phase === 'idle') showHome();
   else resetReading(true);
 });
 $('#readingBtn').addEventListener('click', () => openSheet());
@@ -1928,4 +2000,4 @@ addEventListener('resize', () => {
 
 buildStack();
 renderSlots();
-showLanding();
+showHome();

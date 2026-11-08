@@ -471,6 +471,21 @@ const sound = (() => {
       tone(NOTES[base] * 2, t + 0.2, 2.2, 0.025);
     },
     riffle() { if (!state.muted) { ensure(); noise(0.35, 3000, 1200, 0.25); } },
+    // 轉動牌環或輪盤時，每經過一張牌就輕輕「喀」一聲（太密時跳過）
+    tick() {
+      if (state.muted || !ac) return;
+      const now = ac.currentTime;
+      if (now - (this.lastTick || 0) < 0.045) return;
+      this.lastTick = now;
+      const len = Math.floor(ac.sampleRate * 0.03), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 4;
+      const src = ac.createBufferSource(), bp = ac.createBiquadFilter(), g = ac.createGain();
+      src.buffer = buf;
+      bp.type = 'bandpass'; bp.frequency.value = 2400 + Math.random() * 600; bp.Q.value = 2.5;
+      g.gain.value = 0.22;
+      src.connect(bp).connect(g).connect(ac.destination);
+      src.start(now);
+    },
     // 翻牌前的蓄力：往上滑的泛音
     charge() {
       if (state.muted) return;
@@ -831,8 +846,11 @@ const wheel = (() => {
     items = [...dial.children];
   }
 
+  let lastIdx = -1;
   function frame() {
     rot += (target - rot) * 0.16;
+    const n = keys.length, idx = n ? (((Math.round(-rot / step) % n) + n) % n) : -1;
+    if (idx !== lastIdx) { if (lastIdx >= 0) sound.tick(); lastIdx = idx; }
     dial.style.setProperty('--rot', `${rot}deg`);
     raf = Math.abs(target - rot) > 0.05 || drag ? requestAnimationFrame(frame) : 0;
   }
@@ -862,6 +880,7 @@ const wheel = (() => {
     const b = $('#spreadBtn').getBoundingClientRect();
     root.style.setProperty('--ox', `${b.left + b.width / 2}px`);
     root.style.setProperty('--oy', `${b.top + b.height / 2}px`);
+    lastIdx = -1;
     focus(Math.max(keys.indexOf(sceneSpread[state.sceneKey]), 0), false);
     root.hidden = false;
     void root.offsetWidth;
@@ -1012,7 +1031,7 @@ const ring = (() => {
   // 牌環的牌排得很密，正前方那張和左右兩張的深度只差一點點，Safari 有時會疊錯順序。
   // 所以停下來時，在正前方另外放一張完整的牌背，蓋在牌環上面。
   const focus = document.createElement('div');
-  focus.className = 'focus';
+  focus.className = 'ring-focus';
   focus.innerHTML = '<div class="face back"></div>';
   root.appendChild(focus);
   let cards = [], step = 0, R = 0, rot = 0, vel = 0, drag = null, raf = 0, intro = null, frontIdx = -1, moving = false;
@@ -1050,6 +1069,7 @@ const ring = (() => {
     const n = cards.length;
     const idx = n ? (((Math.round(-rot / step) % n) + n) % n) : -1;
     if (idx !== frontIdx) {
+      if (frontIdx >= 0 && !intro) sound.tick();
       cards[frontIdx]?.el.classList.remove('facing');
       cards[idx]?.el.classList.add('facing');
       frontIdx = idx;

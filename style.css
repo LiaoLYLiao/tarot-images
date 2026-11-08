@@ -333,9 +333,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 #pickRing.ready .rcard { transition: transform .35s cubic-bezier(.2, .8, .2, 1); }
 .rcard .face { background: var(--back) center / 100% 100%; box-shadow: 0 6px 16px rgba(0, 0, 0, .5), 0 0 0 1px rgba(232, 200, 119, .25); transition: box-shadow .3s; }
-.focus { position: absolute; left: 50%; z-index: 5; pointer-events: none; transform: translateY(-20px); transition: opacity .25s, transform .3s cubic-bezier(.2, .9, .3, 1.3); }
-.focus .face { border-radius: 5.5% / 3.2%; box-shadow: 0 14px 30px rgba(0, 0, 0, .6), 0 0 0 1.5px rgba(255, 230, 160, .95), 0 0 34px rgba(255, 215, 130, .75); }
-#pickRing.moving .focus { opacity: 0; transform: translateY(0) scale(.9); }
+.ring-focus { position: absolute; left: 50%; z-index: 5; pointer-events: none; transform: translateY(-20px); transition: opacity .25s, transform .3s cubic-bezier(.2, .9, .3, 1.3); }
+.ring-focus .face { border-radius: 5.5% / 3.2%; box-shadow: 0 14px 30px rgba(0, 0, 0, .6), 0 0 0 1.5px rgba(255, 230, 160, .95), 0 0 34px rgba(255, 215, 130, .75); }
+#pickRing.moving .ring-focus { opacity: 0; transform: translateY(0) scale(.9); }
 #pickRing:not(.moving) .rcard.facing { opacity: 0; transition: opacity .15s; }
 
 #revealBar {
@@ -743,3 +743,5 @@ body.gallery-mode #spreadName, body.gallery-mode .screen { visibility: hidden; }
 .sum-text { margin: 0; font-size: 15px; font-weight: 300; line-height: 1.95; letter-spacing: .04em; color: #f7ecd2; text-align: left; }
 .sum-advice { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid rgba(232, 200, 119, .2); font-size: 14px; line-height: 1.8; color: #ffe7a8; }
 .sum-advice span { display: block; margin-bottom: 2px; font-size: 11px; letter-spacing: .3em; color: rgba(232, 200, 119, .7); }
+
+.modal-text section .rel { margin-top: 6px; padding-top: 0; border-top: 0; }

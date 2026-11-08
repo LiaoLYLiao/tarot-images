@@ -35,6 +35,7 @@ const state = {
   topic: 'general',
   readingId: null,
   readingTime: 0,
+  screen: 'landing',
   muted: false,
 };
 
@@ -59,6 +60,7 @@ const SPRITES = {
   gold: makeSprite('rgba(255,205,110,.8)'),
   rose: makeSprite('rgba(255,160,200,.7)'),
   cyan: makeSprite('rgba(150,230,255,.7)'),
+  ember: makeSprite('rgba(255,140,60,.85)'),
 };
 
 function fitCanvas(c) {
@@ -335,12 +337,51 @@ const fx = (() => {
   let parts = [], rings = [];
   const kinds = ['gold', 'gold', 'gold', 'star', 'rose', 'cyan'];
 
-  function burst(x, y, n = 70, power = 7) {
+  let circles = [];
+  function burst(x, y, n = 70, power = 7, palette = kinds) {
     for (let i = 0; i < n; i++) {
       const a = rand() * Math.PI * 2, v = power * (0.3 + rand());
-      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: 0.06, drag: 0.95, life: 1, decay: 0.008 + rand() * 0.014, s: 6 + rand() * 16, k: kinds[(rand() * kinds.length) | 0] });
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: 0.06, drag: 0.95, life: 1, decay: 0.008 + rand() * 0.014, s: 6 + rand() * 16, k: palette[(rand() * palette.length) | 0] });
     }
     rings.push({ x, y, r: 10, life: 1 });
+  }
+  // 翻牌前在牌底下展開的魔法陣：兩道圓環、刻度與旋轉的光點
+  function magic(x, y, r, rgb) {
+    circles.push({ x, y, r, rgb, t0: performance.now() });
+  }
+  function drawCircles(t) {
+    circles = circles.filter((c) => t - c.t0 < 1100);
+    for (const c of circles) {
+      const k = (t - c.t0) / 1100;
+      const a = Math.sin(Math.min(k * 1.6, 1) * Math.PI / 2) * (1 - Math.max(0, (k - 0.6) / 0.4));
+      const rr = c.r * (0.75 + 0.35 * Math.min(k * 2, 1));
+      const spin = k * 2.4;
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = `rgba(${c.rgb},.85)`;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(c.x, c.y, rr, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(c.x, c.y, rr * 0.82, 0, Math.PI * 2); ctx.stroke();
+      for (let i = 0; i < 24; i++) {
+        const ang = spin + (i / 24) * Math.PI * 2, long = i % 3 === 0;
+        ctx.beginPath();
+        ctx.moveTo(c.x + Math.cos(ang) * rr * 0.84, c.y + Math.sin(ang) * rr * 0.84);
+        ctx.lineTo(c.x + Math.cos(ang) * rr * (long ? 0.97 : 0.92), c.y + Math.sin(ang) * rr * (long ? 0.97 : 0.92));
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      for (let i = 0; i <= 6; i++) {
+        const ang = -spin * 0.7 + (i / 6) * Math.PI * 2 * 2;
+        const px = c.x + Math.cos(ang) * rr * 0.8, py = c.y + Math.sin(ang) * rr * 0.8;
+        i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.globalAlpha = a * 0.5;
+      ctx.stroke();
+      for (let i = 0; i < 6; i++) {
+        const ang = -spin * 1.5 + (i / 6) * Math.PI * 2, s = 14;
+        ctx.globalAlpha = a;
+        ctx.drawImage(SPRITES.gold, c.x + Math.cos(ang) * rr - s / 2, c.y + Math.sin(ang) * rr - s / 2, s, s);
+      }
+    }
   }
   function sparkle(x, y, n = 2) {
     for (let i = 0; i < n; i++) {
@@ -372,15 +413,16 @@ const fx = (() => {
       ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
       ctx.stroke();
     }
+    drawCircles(performance.now());
     ctx.globalAlpha = 1;
-    if (state.phase === 'idle' && rand() < 0.12 && state.els.length) {
+    if (state.phase === 'shuffling' && rand() < 0.2) {
       const s = stackPos(0);
       mote(s.x + (rand() - 0.5) * s.w * 1.6, s.y + s.h * 0.4 * rand());
     }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
-  return { burst, sparkle, resize: () => (ctx = fitCanvas(canvas)) };
+  return { burst, sparkle, magic, resize: () => (ctx = fitCanvas(canvas)) };
 })();
 
 /* ================= 音效（WebAudio 合成） ================= */
@@ -428,6 +470,21 @@ const sound = (() => {
       tone(NOTES[base] * 2, t + 0.2, 2.2, 0.025);
     },
     riffle() { if (!state.muted) { ensure(); noise(0.35, 3000, 1200, 0.25); } },
+    // 翻牌前的蓄力：往上滑的泛音
+    charge() {
+      if (state.muted) return;
+      ensure();
+      const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(330, t);
+      o.frequency.exponentialRampToValueAtTime(990, t + 0.5);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.05, t + 0.3);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      o.connect(g).connect(ac.destination);
+      o.start(t);
+      o.stop(t + 0.65);
+    },
     whoosh() { if (!state.muted) { ensure(); noise(0.6, 400, 2400, 0.18); } },
   };
 })();
@@ -435,33 +492,23 @@ const sound = (() => {
 /* ================= 版面計算 ================= */
 const headerBottom = () => $('#top').getBoundingClientRect().bottom;
 
-// 牌堆放在標題列與下方問題區之間的空間正中央，依可用高度縮放
+// 洗牌時，牌堆在畫面中央
 function stackPos(i) {
-  const top = headerBottom() + 16, bottom = (state.phase === 'choosing' ? chooser : $('#intro')).offsetTop - 20;
-  const h = Math.max(120, Math.min((bottom - top) * 0.8, 380, innerWidth * 0.46 * CARD_RATIO));
-  return { x: innerWidth / 2, y: (top + bottom) / 2 + 3 - i * 0.08, w: h / CARD_RATIO, h, rot: 0 };
+  const top = headerBottom() + 16, bottom = innerHeight * 0.86;
+  const h = Math.max(120, Math.min((bottom - top) * 0.62, 340, innerWidth * 0.46 * CARD_RATIO));
+  return { x: innerWidth / 2, y: (top + bottom) / 2 - i * 0.08, w: h / CARD_RATIO, h, rot: 0 };
 }
 
-function fanGeom(n = state.fanN || CARDS.length) {
-  const fw = clamp(innerWidth * 0.06, 40, 78), fh = fw * CARD_RATIO;
-  const half = Math.min(innerWidth * 0.45 - fw / 2, 700);
-  const sag = Math.min(110, half * 0.42);
-  const theta = 2 * Math.atan(sag / half);
-  const R = half / Math.sin(theta);
-  const topY = innerHeight - fh / 2 - sag - 24;
-  return {
-    n, fw, fh, theta, R, cx: innerWidth / 2, cy: topY + R,
-    top: topY - fh / 2,
-    pos(k) {
-      const a = n > 1 ? -theta + (2 * theta * k) / (n - 1) : 0;
-      return { x: this.cx + R * Math.sin(a), y: this.cy - R * Math.cos(a), w: fw, h: fh, rot: a / DEG };
-    },
-  };
+// 抽牌用的 3D 牌環在畫面下方；cy 是正前方那張牌的中心
+function ringGeom() {
+  const cw = clamp(innerWidth * 0.16, 62, 104), ch = cw * CARD_RATIO;
+  const cy = innerHeight - ch / 2 - Math.max(30, innerHeight * 0.04);
+  return { cw, ch, cy, top: cy - ch / 2 - 30 };
 }
 
 function spreadArea() {
   const top = headerBottom() + 18;
-  const bottom = state.phase === 'reading' ? innerHeight - 78 : fanGeom().top - 46;
+  const bottom = state.phase === 'reading' || state.phase === 'revealing' ? innerHeight - 78 : ringGeom().top - 40;
   const side = innerWidth < 640 ? 8 : 16;
   return { x: side, y: top, w: innerWidth - side * 2, h: Math.max(120, bottom - top) };
 }
@@ -494,19 +541,22 @@ function computeLayout() {
   return state.layout;
 }
 
+const cardTransform = (p) => `translate3d(${p.x - p.w / 2}px, ${p.y - p.h / 2}px, 0) rotate(${p.rot}deg)`;
 function place(el, p, lift = true) {
   el.style.width = `${p.w}px`;
   el.style.height = `${p.h}px`;
-  el.style.transform = `translate3d(${p.x - p.w / 2}px, ${p.y - p.h / 2}px, 0) rotate(${p.rot}deg)` + (lift ? ' translateY(var(--lift, 0px))' : '');
+  el.style.transform = cardTransform(p) + (lift ? ' translateY(var(--lift, 0px))' : '');
 }
 
 /* ================= 牌位與標籤 ================= */
+const TABLE_PHASES = ['dealing', 'picking', 'revealing', 'reading'];
 function renderSlots() {
   const slots = $('#slots'), labels = $('#labels');
-  const show = ['dealing', 'picking', 'reading'].includes(state.phase);
+  const show = TABLE_PHASES.includes(state.phase);
   const positions = SPREADS[state.spread].positions;
   if (slots.children.length !== positions.length || slots.dataset.spread !== state.spread) {
-    slots.innerHTML = labels.innerHTML = '';
+    slots.innerHTML = '';
+    labels.querySelectorAll('.slot-label').forEach((l) => l.remove());
     slots.dataset.spread = state.spread;
     positions.forEach((p) => {
       const s = document.createElement('div');
@@ -524,7 +574,7 @@ function renderSlots() {
     s.style.opacity = show ? 1 : 0;
     s.classList.toggle('next', state.phase === 'picking' && i === state.picks.length);
   });
-  [...labels.children].forEach((l, i) => {
+  [...labels.querySelectorAll('.slot-label')].forEach((l, i) => {
     const p = layout[i];
     const lw = l.offsetWidth, lh = l.offsetHeight;
     const x = p.rot ? p.x + p.h * 0.3 : p.x, y = p.rot ? p.y : p.y - p.h / 2;
@@ -536,20 +586,29 @@ function renderSlots() {
 function updateHint() {
   const hint = $('#hint');
   const positions = SPREADS[state.spread].positions;
-  if (state.phase === 'picking' && state.picks.length < positions.length) {
+  hint.style.opacity = 1;
+  if (state.phase === 'picking' && state.picks.length < positions.length && !state.dealing) {
     const p = positions[state.picks.length];
     const from = p.pool === 'major' ? `從 ${state.fanN} 張大阿爾克那中，` : p.pool === 'minor' ? `從 ${state.fanN} 張小阿爾克那中，` : '';
-    hint.textContent = `${from}憑直覺選出第 ${state.picks.length + 1} 張牌 · ${p.name}`;
-    hint.style.top = `${fanGeom().top - 38}px`;
-    hint.style.opacity = 1;
+    hint.innerHTML = `${from}選出第 ${state.picks.length + 1} 張牌 · ${p.name}<small>左右滑動牌環，點一張牌抽出</small>`;
+    hint.style.top = `${ringGeom().top - 48}px`;
   } else if (state.phase === 'shuffling') {
     hint.textContent = '洗牌中，讓問題在心中沉澱…';
     const s = stackPos(0);
     hint.style.top = `${s.y + s.h / 2 + 24}px`;
-    hint.style.opacity = 1;
+  } else if (state.phase === 'revealing' && state.revealed < positions.length) {
+    hint.innerHTML = positions.length > 1 ? '牌都到齊了<small>點擊牌，一張一張翻開</small>' : '準備好了嗎？<small>點擊牌翻開今天的指引</small>';
+    hint.style.top = `${innerHeight - 128}px`;
   } else {
     hint.style.opacity = 0;
   }
+}
+
+// 標題列中間顯示目前的牌陣與問題類型（只在電腦版）
+function updateHeader() {
+  const on = TABLE_PHASES.includes(state.phase);
+  const topic = TOPICS[state.topic];
+  $('#spreadName').textContent = on ? SPREADS[state.spread].name + (topic.field ? ` · ${topic.zh}` : '') : '';
 }
 
 /* ================= 牌的建立 ================= */
@@ -563,6 +622,7 @@ function makeCard() {
   return el;
 }
 
+// 牌堆一開始藏著，洗牌時才出現
 function buildStack() {
   const table = $('#table');
   table.innerHTML = '';
@@ -570,6 +630,8 @@ function buildStack() {
     const el = makeCard();
     el.classList.add('stack');
     el.style.transitionDuration = '0s';
+    el.style.opacity = 0;
+    el.style.pointerEvents = 'none';
     place(el, stackPos(i));
     table.appendChild(el);
     el.addEventListener('click', onCardClick);
@@ -580,68 +642,88 @@ function buildStack() {
 
 function onCardClick(e) {
   const el = e.currentTarget;
-  if (state.phase === 'idle') startShuffle();
-  else if (state.phase === 'picking' && el.classList.contains('fan')) pick(el);
-  else if (el.classList.contains('placed') && el.classList.contains('flipped')) {
-    openModal(state.picks.find((p) => p.el === el));
-  }
+  const p = state.picks.find((q) => q.el === el);
+  if (!p) return;
+  if (state.phase === 'revealing' && !p.revealed) reveal(p);
+  else if (el.classList.contains('flipped')) openModal(p);
 }
 
-/* ================= 洗牌 ================= */
-let motionAsked = false;
-async function askMotion() {
-  if (motionAsked) return;
-  motionAsked = true;
-  if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
-    try { await DeviceMotionEvent.requestPermission(); } catch { /* 使用者拒絕就算了 */ }
-  }
+/* ================= 起始頁與情境 ================= */
+const landing = $('#landing'), scene = $('#scene');
+const SCENES = {
+  love: { sub: '靜下心，想著那個人或那段關係' },
+  career: { sub: '想著你工作上的處境或抉擇' },
+  study: { sub: '想著你的學習目標或考試' },
+  self: { sub: '把注意力放回自己身上' },
+  general: { sub: '在心中默念你想問的事' },
+};
+const AURA = { daily: '120,90,220', general: '120,90,220', love: '255,110,170', career: '240,180,80', study: '80,180,255', self: '160,120,255' };
+
+function setAura(key) {
+  const aura = $('#aura');
+  aura.style.opacity = 0;
+  setTimeout(() => { aura.style.setProperty('--aura', AURA[key] || AURA.general); aura.style.opacity = 1; }, 250);
 }
 
-async function startShuffle() {
-  if (state.phase === 'shuffling') return;
-  if (state.phase === 'reading' || state.picks.length) return resetReading(true);
+function showScreen(name) {
+  landing.classList.toggle('show', name === 'landing');
+  scene.classList.toggle('show', name === 'scene');
+  state.screen = name;
+}
+
+function showLanding() {
+  const today = todayDaily();
+  const daily = landing.querySelector('[data-scene="daily"]');
+  daily.querySelector('.d').textContent = today ? `今天抽到「${CARD_BY_FILE[today.picks[0].file]?.zh || ''}」，點擊回顧` : '今天的指引，一天只能抽一張';
+  daily.querySelector('.badge').hidden = !!today;
+  daily.classList.toggle('done', !!today);
+  setAura('general');
+  showScreen('landing');
+}
+
+function openScene(topic) {
+  setTopic(topic);
+  const t = TOPICS[topic];
+  scene.querySelector('.scene-icon').innerHTML = landing.querySelector(`[data-scene="${topic}"] svg`).outerHTML;
+  scene.querySelector('h2').textContent = topic === 'general' ? '綜合占卜' : `${t.zh}占卜`;
+  scene.querySelector('.scene-sub').textContent = SCENES[topic].sub;
+  const recs = TOPIC_SPREADS[topic];
+  const more = Object.keys(SPREADS).filter((k) => k !== 'one' && !recs.includes(k));
+  scene.querySelector('.chooser-list').innerHTML = recs.map((key, i) => {
+    const sp = SPREADS[key];
+    const badge = i === 0 ? (topic === 'general' ? '推薦' : `適合${t.zh}`) : '';
+    return `<button class="sp-tile ${i === 0 ? 'hot' : ''}" data-spread="${key}">
+      ${spreadDiagram(key)}
+      <span class="sp-text">
+        <span class="sp-name">${sp.name}<span class="sp-count">${sp.positions.length} 張</span>${badge ? `<span class="badge">${badge}</span>` : ''}</span>
+        <span class="sp-blurb">${sp.blurb}</span>
+      </span>
+    </button>`;
+  }).join('');
+  scene.querySelector('.chooser-more .chips').innerHTML = more.map((key) => `<button data-spread="${key}">${SPREADS[key].name}</button>`).join('');
+  scene.scrollTop = 0;
+  setAura(topic);
+  showScreen('scene');
+}
+
+landing.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-scene]');
+  if (!b || state.phase !== 'idle') return;
   sound.unlock();
-  askMotion();
-  state.phase = 'shuffling';
-  state.deck = shuffled(CARDS).map((card) => ({ card, reversed: rand() < 0.35 }));
-  $('#intro').classList.add('gone');
-  $('#question').blur();
-  renderSlots();
+  if (b.dataset.scene !== 'daily') return openScene(b.dataset.scene);
+  const today = todayDaily();
+  if (today) return openSheet(readingFromHistory(today), 'calendar');
+  setTopic('general');
+  $('#question').value = '';
+  setAura('daily');
+  startReading('one');
+});
 
-  const els = state.els;
-  els.forEach((el) => {
-    el.classList.remove('fan', 'hot');
-    el.classList.add('stack');
-    el.style.opacity = 1;
-    el.style.pointerEvents = '';
-  });
-  els.forEach((el, i) => { el.style.transitionDuration = '.5s'; el.style.transitionDelay = `${(els.length - i) * 3}ms`; place(el, stackPos(i)); });
-  updateHint();
-  await sleep(600);
-
-  const s = stackPos(0);
-  for (let round = 0; round < 3; round++) {
-    sound.riffle();
-    els.forEach((el, i) => {
-      const side = rand() < 0.5 ? -1 : 1;
-      el.style.transitionDuration = '.28s';
-      el.style.transitionDelay = `${i * 2}ms`;
-      place(el, { ...stackPos(i), x: s.x + side * Math.min(s.w * (0.55 + rand() * 0.15), innerWidth / 2 - s.w / 2 - 6), y: s.y - i * 0.25 + (rand() - 0.5) * 10, rot: side * (6 + rand() * 6) });
-    });
-    await sleep(430);
-    const table = $('#table');
-    shuffled(els).forEach((el) => table.appendChild(el));
-    state.els = [...table.children];
-    state.els.forEach((el, i) => { el.style.transitionDelay = `${i * 2}ms`; place(el, stackPos(i)); });
-    await sleep(420);
-  }
-
-  state.els.forEach((el, k) => (el.dataset.k = k));
-  showChooser();
-}
-
-/* ================= 選擇牌陣 ================= */
-const chooser = $('#chooser');
+scene.addEventListener('click', (e) => {
+  if (e.target.closest('[data-act="home"]')) return showLanding();
+  const b = e.target.closest('[data-spread]');
+  if (b && state.phase === 'idle') startReading(b.dataset.spread);
+});
 
 // 牌陣的縮圖：用直式排法畫出每個牌位的小方塊
 function spreadDiagram(key) {
@@ -658,176 +740,378 @@ function spreadDiagram(key) {
     `<rect x="${(ox + (b.x - minX) * k).toFixed(1)}" y="${(oy + (b.y - minY) * k).toFixed(1)}" width="${(b.w * k - 1.2).toFixed(1)}" height="${(b.h * k - 1.2).toFixed(1)}" rx="1"/>`).join('')}</svg>`;
 }
 
-function showChooser() {
-  const today = todayDaily();
-  const topic = TOPICS[state.topic];
-  const recs = [...TOPIC_SPREADS[state.topic]];
-  const tiles = [];
-  if (!today) tiles.push({ key: 'one', badge: '今天還沒抽', hot: true });
-  recs.forEach((key, i) => tiles.push({ key, badge: i === 0 ? (state.topic === 'general' ? '推薦' : `適合${topic.zh}`) : '' }));
-  const shown = new Set(tiles.map((t) => t.key));
-  const more = Object.keys(SPREADS).filter((k) => !shown.has(k));
-
-  chooser.querySelector('.chooser-sub').textContent = today
-    ? (state.topic === 'general' ? '依你的問題挑一個牌陣' : `依你選的「${topic.zh}」推薦`)
-    : '今天的每日一牌還沒抽，推薦先抽一張今天的指引';
-  chooser.querySelector('.chooser-list').innerHTML = tiles.map(({ key, badge, hot }) => {
-    const sp = SPREADS[key];
-    return `<button class="sp-tile ${hot ? 'hot' : ''}" data-spread="${key}">
-      ${spreadDiagram(key)}
-      <span class="sp-text">
-        <span class="sp-name">${sp.name}<span class="sp-count">${sp.positions.length} 張</span>${badge ? `<span class="badge">${badge}</span>` : ''}</span>
-        <span class="sp-blurb">${sp.blurb}</span>
-      </span>
-    </button>`;
-  }).join('');
-  chooser.querySelector('.chooser-more .chips').innerHTML = more.map((key) =>
-    `<button data-spread="${key}">${SPREADS[key].name}${key === 'one' && today ? `・今天是${CARD_BY_FILE[today.picks[0].file]?.zh || ''}` : ''}</button>`).join('');
-  chooser.hidden = false;
-  state.phase = 'choosing';
-  updateHint();
-  // 牌堆讓出空間給選單
-  state.els.forEach((el, i) => { el.style.transitionDuration = '.6s'; el.style.transitionDelay = '0ms'; place(el, stackPos(i)); });
+function startReading(spreadKey) {
+  state.spread = spreadKey;
+  $('#question').blur();
+  showScreen('table');
+  startShuffle();
 }
 
-async function chooseSpread(key) {
-  if (state.phase !== 'choosing') return;
-  const today = key === 'one' && todayDaily();
-  if (today) return openSheet(readingFromHistory(today), 'calendar');
-  state.spread = key;
-  chooser.hidden = true;
-  state.phase = 'dealing';
+/* ================= 洗牌 ================= */
+let motionAsked = false;
+async function askMotion() {
+  if (motionAsked) return;
+  motionAsked = true;
+  if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
+    try { await DeviceMotionEvent.requestPermission(); } catch { /* 使用者拒絕就算了 */ }
+  }
+}
+
+async function startShuffle() {
+  if (state.phase === 'shuffling') return;
+  sound.unlock();
+  askMotion();
+  state.phase = 'shuffling';
+  state.deck = shuffled(CARDS).map((card) => ({ card, reversed: rand() < 0.35 }));
   renderSlots();
   updateHeader();
-  await sleep(dealFan(true));
+
+  const els = state.els;
+  els.forEach((el) => { el.classList.add('stack'); el.style.opacity = 1; });
+  els.forEach((el, i) => { el.style.transitionDuration = '.5s'; el.style.transitionDelay = `${(els.length - i) * 3}ms`; place(el, stackPos(i)); });
+  updateHint();
+  await sleep(600);
+
+  const s = stackPos(0);
+  for (let round = 0; round < 3; round++) {
+    sound.riffle();
+    els.forEach((el, i) => {
+      const side = rand() < 0.5 ? -1 : 1;
+      el.style.transitionDuration = '.28s';
+      el.style.transitionDelay = `${i * 2}ms`;
+      place(el, { ...stackPos(i), x: s.x + side * Math.min(s.w * (0.55 + rand() * 0.15), innerWidth / 2 - s.w / 2 - 6), y: s.y - i * 0.25 + (rand() - 0.5) * 10, rot: side * (6 + rand() * 6) });
+    });
+    await sleep(430);
+    const table = $('#table');
+    shuffled(state.els).forEach((el) => table.appendChild(el));
+    state.els = [...table.children];
+    state.els.forEach((el, i) => { el.style.transitionDelay = `${i * 2}ms`; place(el, stackPos(i)); });
+    await sleep(420);
+  }
+
+  state.els.forEach((el, k) => (el.dataset.k = k));
+  state.phase = 'dealing';
+  renderSlots();
+  await dealRing();
   state.phase = 'picking';
   renderSlots();
   updateHint();
 }
 
-chooser.addEventListener('click', (e) => {
-  if (e.target.closest('[data-act="back"]')) {
-    chooser.hidden = true;
-    state.phase = 'idle';
-    $('#intro').classList.remove('gone');
-    updateIntro();
-    updateHint();
-    return;
-  }
-  const b = e.target.closest('[data-spread]');
-  if (b) chooseSpread(b.dataset.spread);
-});
+/* ================= 3D 牌環 ================= */
+const ring = (() => {
+  const root = $('#pickRing'), spin = root.querySelector('.spin');
+  let cards = [], step = 0, R = 0, rot = 0, vel = 0, drag = null, raf = 0, intro = null, frontIdx = -1;
 
-// 標題列中間顯示目前的牌陣與問題類型（只在電腦版）
-function updateHeader() {
-  const on = ['dealing', 'picking', 'reading'].includes(state.phase);
-  const topic = TOPICS[state.topic];
-  $('#spreadName').textContent = on ? SPREADS[state.spread].name + (topic.field ? ` · ${topic.zh}` : '') : '';
-}
+  function layout() {
+    const g = ringGeom();
+    const n = Math.max(cards.length, 1);
+    step = 360 / n;
+    R = Math.max((n * g.cw * 0.52) / (2 * Math.PI), g.cw * 2.3);
+    root.style.top = `${g.top - 40}px`;
+    root.style.perspectiveOrigin = `50% ${g.cy - (g.top - 40)}px`;
+    spin.style.top = `${g.cy - (g.top - 40)}px`;
+    spin.style.setProperty('--R', `${R}px`);
+    cards.forEach((c, i) => {
+      Object.assign(c.el.style, { width: `${g.cw}px`, height: `${g.ch}px`, marginLeft: `${-g.cw / 2}px`, marginTop: `${-g.ch / 2}px` });
+      c.el.style.setProperty('--a', `${i * step}deg`);
+    });
+  }
+
+  function frame(t) {
+    if (intro) {
+      // 發牌時牌環從遠處旋轉進來
+      const k = Math.min((t - intro.t0) / 1300, 1), e = 1 - (1 - k) ** 3;
+      rot = intro.from * (1 - e);
+      root.style.setProperty('--open', e.toFixed(3));
+      if (k >= 1) { intro = null; root.classList.add('ready'); }
+    } else if (!drag) {
+      rot += vel;
+      vel *= 0.92;
+      if (Math.abs(vel) < 0.04) { const target = Math.round(rot / step) * step; rot += (target - rot) * 0.14; }
+    }
+    // 先把牌環往後推，再以正前方那張牌為軸稍微俯視，正前方的牌就會固定在 cy
+    spin.style.transform = `rotateX(-9deg) translateZ(calc(var(--R) * -1)) rotateY(${rot}deg)`;
+    const n = cards.length;
+    const idx = n ? (((Math.round(-rot / step) % n) + n) % n) : -1;
+    if (idx !== frontIdx) {
+      cards[frontIdx]?.el.classList.remove('facing');
+      cards[idx]?.el.classList.add('facing');
+      frontIdx = idx;
+    }
+    raf = requestAnimationFrame(frame);
+  }
+
+  root.addEventListener('pointerdown', (e) => {
+    if (!cards.length || intro) return;
+    drag = { x: e.clientX, last: e.clientX, moved: 0 };
+    root.setPointerCapture(e.pointerId);
+  });
+  root.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.last;
+    drag.last = e.clientX;
+    drag.moved += Math.abs(dx);
+    const k = step / (ringGeom().cw * 0.55);
+    rot += dx * k;
+    vel = dx * k;
+  });
+  root.addEventListener('pointerup', (e) => {
+    const d = drag;
+    drag = null;
+    if (!d || d.moved > 6) return;
+    root.releasePointerCapture(e.pointerId);
+    const hit = document.elementsFromPoint(e.clientX, e.clientY).find((x) => x.classList?.contains('rcard'));
+    if (hit) pickFromRing(+hit.dataset.k);
+  });
+  root.addEventListener('wheel', (e) => {
+    if (!cards.length) return;
+    e.preventDefault();
+    vel += (e.deltaX || e.deltaY) * -0.02;
+  }, { passive: false });
+
+  return {
+    show(ks) {
+      spin.innerHTML = '';
+      cards = ks.map((k) => {
+        const el = document.createElement('div');
+        el.className = 'rcard';
+        el.dataset.k = k;
+        el.innerHTML = '<div class="face back"></div>';
+        spin.appendChild(el);
+        return { k, el };
+      });
+      frontIdx = -1;
+      layout();
+      root.hidden = false;
+      root.classList.remove('out', 'ready');
+      intro = { t0: performance.now(), from: 300 };
+      root.style.setProperty('--open', 0);
+      if (!raf) raf = requestAnimationFrame(frame);
+      return 1300;
+    },
+    remove(k) {
+      const i = cards.findIndex((c) => c.k === k);
+      if (i < 0) return;
+      cards[i].el.remove();
+      cards.splice(i, 1);
+      frontIdx = -1;
+      // 讓剩下的牌補上空位，並保持原本正前方的位置
+      const oldStep = step;
+      layout();
+      rot = (rot / oldStep) * step;
+    },
+    rectOf(k) { return cards.find((c) => c.k === k)?.el.getBoundingClientRect(); },
+    async hide() {
+      if (root.hidden) return;
+      root.classList.add('out');
+      await sleep(450);
+      root.hidden = true;
+      spin.innerHTML = '';
+      cards = [];
+      cancelAnimationFrame(raf);
+      raf = 0;
+    },
+    layout,
+  };
+})();
 
 const poolOf = (slot) => SPREADS[state.spread].positions[slot]?.pool;
 const inPool = (card, pool) => !pool || (pool === 'major') === card.major;
 
-// 依下一個牌位需要的牌池（大牌／小牌／全部）展開扇形，其餘的牌收到扇形下方藏起來。
-// 回傳動畫所需的毫秒數。
-function dealFan(animate) {
+// 依下一個牌位需要的牌池（大牌／小牌／全部）組成牌環，牌堆收進牌環裡
+async function dealRing() {
   const pool = poolOf(state.picks.length);
-  const fanEls = [], restEls = [];
+  const ks = state.els.filter((el) => !el.classList.contains('flying') && !el.classList.contains('placed'))
+    .map((el) => +el.dataset.k).filter((k) => inPool(state.deck[k].card, pool));
+  state.fanN = ks.length;
+  const g = ringGeom();
   state.els.forEach((el) => {
     if (el.classList.contains('flying') || el.classList.contains('placed')) return;
-    (inPool(state.deck[+el.dataset.k].card, pool) ? fanEls : restEls).push(el);
-  });
-  state.fanN = fanEls.length;
-  const fan = fanGeom();
-  const hidden = { x: fan.cx, y: fan.top + fan.fh, w: fan.fw, h: fan.fh, rot: 0 };
-  restEls.forEach((el) => {
-    el.classList.remove('fan', 'hot', 'stack');
-    el.style.transitionDuration = animate ? '.6s' : '0s';
+    el.classList.remove('stack');
+    el.style.transitionDuration = '.55s';
     el.style.transitionDelay = '0ms';
     el.style.opacity = 0;
     el.style.pointerEvents = 'none';
-    place(el, hidden);
+    place(el, { x: innerWidth / 2, y: g.cy, w: g.cw, h: g.ch, rot: 0 });
   });
-  fanEls.forEach((el, f) => {
-    el.dataset.f = f;
-    el.classList.remove('stack');
-    el.classList.add('fan');
-    el.style.opacity = 1;
-    el.style.pointerEvents = '';
-    el.style.transitionDuration = animate ? '.8s' : '.3s';
-    el.style.transitionDelay = animate ? `${f * 9}ms` : '0ms';
-    place(el, fan.pos(f));
-  });
-  if (!animate) return 0;
   sound.whoosh();
-  for (let f = 0; f < fan.n; f += 3) {
-    setTimeout(() => { const p = fan.pos(f); fx.sparkle(p.x, p.y - fan.fh / 2, 2); }, 200 + f * 9);
-  }
-  const ms = 800 + fan.n * 9;
-  setTimeout(() => fanEls.forEach((el) => {
-    if (!el.classList.contains('fan')) return;
-    el.style.transitionDuration = '.3s';
-    el.style.transitionDelay = '0ms';
-  }), ms);
-  return ms;
+  await sleep(350);
+  const ms = ring.show(ks);
+  for (let i = 0; i < 14; i++) setTimeout(() => fx.sparkle(innerWidth * (0.15 + Math.random() * 0.7), g.cy + (Math.random() - 0.5) * g.ch, 2), i * 60);
+  await sleep(ms);
 }
 
 /* ================= 抽牌 ================= */
+function pickFromRing(k) {
+  const positions = SPREADS[state.spread].positions;
+  if (state.phase !== 'picking' || state.dealing || state.picks.length >= positions.length) return;
+  if (!inPool(state.deck[k].card, poolOf(state.picks.length))) return;
+  const el = state.els.find((x) => +x.dataset.k === k);
+  const r = ring.rectOf(k);
+  if (!el || !r) return;
+  el.style.transitionDuration = '0s';
+  el.style.opacity = 1;
+  el.style.pointerEvents = '';
+  place(el, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: ringGeom().cw, h: ringGeom().ch, rot: 0 });
+  ring.remove(k);
+  if (navigator.vibrate) navigator.vibrate(12);
+  pick(el);
+}
+
+// 牌沿著弧線飛到牌位：先往上揚起、微微傾斜，再落下
+async function flyTo(el, to, ms = 950) {
+  const from = { x: 0, y: 0, w: parseFloat(el.style.width), h: parseFloat(el.style.height), rot: 0 };
+  const r = el.getBoundingClientRect();
+  from.x = r.left + r.width / 2;
+  from.y = r.top + r.height / 2;
+  const mid = {
+    x: (from.x + to.x) / 2 + (rand() - 0.5) * 50, y: Math.min(from.y, to.y) - 70 - rand() * 40,
+    w: to.w * 1.15, h: to.h * 1.15, rot: (to.x < from.x ? -1 : 1) * (10 + rand() * 8) + (to.rot || 0) / 2,
+  };
+  const kf = (p) => ({ transform: cardTransform(p), width: `${p.w}px`, height: `${p.h}px` });
+  const anim = el.animate([kf(from), { ...kf(mid), offset: 0.45 }, kf(to)], { duration: ms, easing: 'cubic-bezier(.45,.05,.25,1)' });
+  place(el, to);
+  const t0 = performance.now();
+  (function trail() {
+    const b = el.getBoundingClientRect();
+    fx.sparkle(b.left + b.width / 2, b.top + b.height / 2, 3);
+    if (performance.now() - t0 < ms - 80) requestAnimationFrame(trail);
+  })();
+  await anim.finished.catch(() => {});
+}
+
 async function pick(el) {
   const positions = SPREADS[state.spread].positions;
-  if (state.dealing || state.picks.length >= positions.length) return;
   const slot = state.picks.length;
   const { card, reversed } = state.deck[+el.dataset.k];
-  if (!inPool(card, poolOf(slot))) return;
   const p = { card, reversed, el, slot };
   state.picks.push(p);
-
-  const img = el.querySelector('img');
-  img.src = thumb(card);
-  el.classList.remove('fan', 'hot');
+  el.querySelector('img').src = thumb(card);
+  el.classList.remove('stack');
   el.classList.add('flying');
   el.classList.toggle('reversed', reversed);
   el.style.setProperty('--lift', '0px');
-  el.style.transitionDuration = '1s';
-  place(el, state.layout[slot]);
   sound.whoosh();
   renderSlots();
-  updateHint();
-  if (slot + 1 < positions.length && poolOf(slot + 1) !== poolOf(slot)) {
-    // 換牌池：剩下的牌收起來，換另一組牌展開
-    state.dealing = true;
+
+  const last = state.picks.length === positions.length;
+  if (last) {
     $('#hint').style.opacity = 0;
-    setTimeout(async () => {
-      await sleep(dealFan(true));
+    ring.hide();
+  } else if (poolOf(slot + 1) !== poolOf(slot)) {
+    // 換牌池：牌環收起來，換另一組牌重新組成牌環
+    state.dealing = true;
+    updateHint();
+    (async () => {
+      await ring.hide();
+      await dealRing();
       state.dealing = false;
       updateHint();
-    }, 650);
+    })();
+  } else {
+    updateHint();
   }
 
-  const t0 = performance.now();
-  (function trail() {
-    const r = el.getBoundingClientRect();
-    fx.sparkle(r.left + r.width / 2, r.top + r.height / 2, 3);
-    if (performance.now() - t0 < 900) requestAnimationFrame(trail);
-  })();
-
-  await sleep(1000);
+  await flyTo(el, state.layout[slot]);
   el.classList.remove('flying');
-  el.classList.add('placed');
-  await Promise.race([img.decode().catch(() => {}), sleep(2500)]);
-  el.classList.add('flipped');
-  await sleep(260);
+  el.classList.add('placed', 'facedown');
+  const b = el.getBoundingClientRect();
+  fx.burst(b.left + b.width / 2, b.top + b.height / 2, 16, 3);
+  if (last) {
+    await sleep(500);
+    startReveal();
+  }
+}
+
+/* ================= 翻牌 ================= */
+const KIND_FX = {
+  major: { burst: ['gold', 'star', 'gold', 'rose'], color: '255,226,150' },
+  cups: { burst: ['cyan', 'star', 'cyan'], color: '150,220,255' },
+  wands: { burst: ['ember', 'gold', 'ember'], color: '255,160,80' },
+  swords: { burst: ['star', 'cyan', 'star'], color: '210,230,255' },
+  pentacles: { burst: ['gold', 'gold', 'star'], color: '255,214,120' },
+};
+const kindOf = (card) => (card.major ? 'major' : card.suit.toLowerCase());
+
+function startReveal() {
+  state.phase = 'revealing';
+  relayoutPlaced();
+  for (const p of state.picks) p.el.classList.add('ready');
+  $('#revealBar').hidden = SPREADS[state.spread].positions.length < 2;
+  updateHint();
+  updateHeader();
+}
+
+async function reveal(p) {
+  if (p.revealing || p.revealed) return;
+  p.revealing = true;
+  const el = p.el, img = el.querySelector('img');
+  const kind = KIND_FX[kindOf(p.card)];
+  el.classList.remove('ready');
   const r = el.getBoundingClientRect();
-  fx.burst(r.left + r.width / 2, r.top + r.height / 2);
-  sound.chime(slot);
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+
+  // 1. 蓄力：牌發光微震，腳下展開魔法陣
+  el.classList.add('charging');
+  fx.magic(cx, cy, Math.max(r.width, r.height) * 0.62, kind.color);
+  sound.charge();
+  await Promise.all([Promise.race([img.decode().catch(() => {}), sleep(1500)]), sleep(520)]);
+
+  // 2. 翻牌：牌往你的方向浮起，同時翻面
+  el.classList.remove('charging', 'facedown');
+  el.classList.add('flipping', 'flipped');
+  if (navigator.vibrate) navigator.vibrate([10, 40, 22]);
+  await sleep(380);
+
+  // 3. 揭曉：依牌的類型噴出光點，大牌多一道全畫面的光
+  fx.burst(cx, cy, p.card.major ? 110 : 70, p.card.major ? 9 : 7, kind.burst);
+  if (p.card.major) flash(kind.color);
+  sound.chime(p.slot);
+  showRevealName(p, r);
+  await sleep(520);
+  el.classList.remove('flipping');
   el.classList.add('shine');
   bindHolo(el, el);
+  live.attach(el.querySelector('.front'), p.card);
 
+  p.revealed = true;
   state.revealed++;
-  if (state.revealed === positions.length) {
-    await sleep(900);
+  updateHint();
+  const total = SPREADS[state.spread].positions.length;
+  if (state.revealed === total) {
+    $('#revealBar').hidden = true;
+    await sleep(1100);
     enterReading();
   }
+}
+
+async function revealAll() {
+  $('#revealBar').hidden = true;
+  for (const p of [...state.picks].sort((a, b) => a.slot - b.slot)) {
+    if (p.revealed || p.revealing) continue;
+    reveal(p);
+    await sleep(700);
+  }
+}
+
+function flash(rgb) {
+  const f = $('#flash');
+  f.style.setProperty('--flash', rgb);
+  f.classList.remove('on');
+  void f.offsetWidth;
+  f.classList.add('on');
+}
+
+function showRevealName(p, r) {
+  const tag = document.createElement('div');
+  tag.className = 'reveal-name' + (p.reversed ? ' rev' : '');
+  tag.innerHTML = `${p.card.zh}<small>${p.reversed ? '逆位' : '正位'}</small>`;
+  $('#labels').appendChild(tag);
+  const w = tag.offsetWidth;
+  tag.style.left = `${clamp(r.left + r.width / 2 - w / 2, 8, innerWidth - w - 8)}px`;
+  tag.style.top = `${Math.min(r.bottom - 10, innerHeight - 60)}px`;
+  setTimeout(() => tag.remove(), 2200);
 }
 
 function enterReading() {
@@ -835,19 +1119,8 @@ function enterReading() {
   state.readingTime = Date.now();
   state.readingId = state.readingTime.toString(36) + Math.floor(rand() * 1e6).toString(36);
   saveHistory(currentReading());
-  const fan = fanGeom();
-  state.els.forEach((el, i) => {
-    if (!el.classList.contains('fan')) return;
-    el.classList.remove('fan');
-    el.style.pointerEvents = 'none';
-    el.style.transitionDuration = '.9s';
-    el.style.transitionDelay = `${Math.abs(i - fan.n / 2) * 4}ms`;
-    const p = fan.pos(+el.dataset.f);
-    place(el, { ...p, y: p.y + innerHeight * 0.5 });
-    el.style.opacity = 0;
-  });
   const leftovers = state.els.filter((el) => !el.classList.contains('placed'));
-  setTimeout(() => leftovers.forEach((el) => el.remove()), 1600);
+  setTimeout(() => leftovers.forEach((el) => el.remove()), 600);
   relayoutPlaced();
   $('#actions').hidden = false;
   updateHint();
@@ -864,12 +1137,15 @@ function relayoutPlaced() {
   }
 }
 
-async function resetReading(reshuffle) {
-  if (state.phase === 'shuffling') return;
+// 回到情境頁（toLanding 時回起始頁）
+async function resetReading(toLanding) {
+  if (state.phase === 'shuffling' || state.phase === 'dealing') return;
   closeTooltip();
   $('#lines').innerHTML = '';
   $('#actions').hidden = true;
-  chooser.hidden = true;
+  $('#revealBar').hidden = true;
+  ring.hide();
+  state.picks.forEach((p) => live.detach(p.el.querySelector('.front')));
   state.els.forEach((el) => {
     el.style.transitionDuration = '.5s';
     el.style.opacity = 0;
@@ -879,18 +1155,14 @@ async function resetReading(reshuffle) {
   state.picks = [];
   state.revealed = 0;
   state.fanN = 0;
+  state.dealing = false;
   renderSlots();
   updateHint();
   updateHeader();
   await sleep(450);
   buildStack();
-  if (reshuffle) {
-    await sleep(80);
-    startShuffle();
-  } else {
-    $('#intro').classList.remove('gone');
-    updateIntro();
-  }
+  if (toLanding || state.spread === 'one') showLanding();
+  else openScene(state.topic);
 }
 
 /* ================= 全息效果 ================= */
@@ -1043,6 +1315,8 @@ function openModal(p, standalone, reading = currentReading()) {
   hi.src = full(card);
   img.dataset.file = card.file;
   mcard.classList.toggle('reversed', !!reversed);
+  live.detach(mcard);
+  live.attach(mcard, card);
   mcard.style.animation = 'none';
   void mcard.offsetWidth;
   mcard.style.animation = '';
@@ -1089,7 +1363,7 @@ function openModal(p, standalone, reading = currentReading()) {
   modal.querySelector('.modal-text').scrollTop = 0;
   modal.hidden = false;
 }
-function closeModal() { modal.hidden = true; }
+function closeModal() { modal.hidden = true; live.detach(mcard); }
 modal.addEventListener('click', (e) => { if (e.target === modal || e.target.closest('.close')) closeModal(); });
 
 /* ================= 完整解讀 ================= */
@@ -1215,12 +1489,6 @@ function dailyByDay() {
 }
 const todayDaily = () => dailyByDay()[dayKey(Date.now())];
 
-function updateIntro() {
-  if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
-  const sub = $('#intro .sub');
-  sub.textContent = todayDaily() ? '點擊牌堆或按下洗牌 · 手機也可以搖一搖' : '今天的每日一牌還沒抽 · 洗牌後可以先抽一張';
-  sub.classList.toggle('nudge', !todayDaily());
-}
 
 const tabsHTML = (on) => `<div class="tabs">
   <button data-act="history" class="${on === 'history' ? 'on' : ''}">占卜紀錄</button>
@@ -1294,7 +1562,7 @@ function openCalendar(step = 0) {
       <div><b>${entries.length}</b><span>本月抽牌天數${total ? ` / ${total}` : ''}</span></div>
       <div><b>${streakDays(map)}</b><span>目前連續天數</span></div>
     </div>
-    ${isThisMonth && !map[todayK] ? '<p class="cal-cta">今天還沒抽牌，洗牌後選「每日一牌」來抽今天的指引吧 ✦</p>' : ''}
+    ${isThisMonth && !map[todayK] ? '<p class="cal-cta">今天還沒抽牌，回到起始頁選「每日一牌」來抽今天的指引吧 ✦</p>' : ''}
     <div class="cal-grid">${cells}</div>
     ${entries.length ? `
     <h3>本月能量</h3>
@@ -1583,8 +1851,12 @@ const gallery = (() => {
 })();
 
 /* ================= 事件 ================= */
-$('#shuffleBtn').addEventListener('click', startShuffle);
-$('#question').addEventListener('keydown', (e) => { if (e.key === 'Enter') startShuffle(); });
+$('#question').addEventListener('keydown', (e) => { if (e.key === 'Enter') e.currentTarget.blur(); });
+$('#revealAllBtn').addEventListener('click', revealAll);
+$('#homeBtn').addEventListener('click', () => {
+  if (state.phase === 'idle') showLanding();
+  else resetReading(true);
+});
 $('#readingBtn').addEventListener('click', () => openSheet());
 $('#shareBtn').addEventListener('click', () => openShare(currentReading()));
 $('#historyBtn').addEventListener('click', openHistory);
@@ -1601,18 +1873,9 @@ $('#ideaBtn').addEventListener('click', () => {
   q.classList.add('flash');
 });
 function setTopic(key) {
+  if (key !== state.topic && $('#question').value === lastIdea) $('#question').value = ''; // 換情境時清掉自動填入的舊靈感
   state.topic = TOPICS[key] ? key : 'general';
-  if ($('#question').value && $('#question').value === lastIdea) $('#question').value = ''; // 換分類時清掉自動填入的舊靈感
-  document.querySelectorAll('#topics button').forEach((b) => b.classList.toggle('on', b.dataset.topic === state.topic));
 }
-$('#topics').innerHTML = Object.entries(TOPICS).map(([k, t]) => `<button data-topic="${k}">${t.zh}</button>`).join('');
-$('#topics').addEventListener('click', (e) => {
-  const b = e.target.closest('button');
-  if (!b) return;
-  setTopic(b.dataset.topic);
-  store.set('starTarot.topic', state.topic);
-});
-setTopic(store.get('starTarot.topic', 'general'));
 $('#againBtn').addEventListener('click', () => resetReading(false));
 $('#galleryBtn').addEventListener('click', () => (gallery.isOpen ? gallery.close() : gallery.open()));
 const SOUND_ICON = {
@@ -1638,8 +1901,9 @@ addEventListener('devicemotion', (e) => {
     const now = Date.now();
     if (d > 28 && now - lastShake > 2500 && !gallery.isOpen && modal.hidden) {
       lastShake = now;
-      if (state.phase === 'idle' || (state.phase === 'picking' && !state.picks.length)) {
-        if (state.phase === 'picking') { state.phase = 'idle'; }
+      // 還沒抽任何牌時搖一搖，就重新洗牌
+      if (state.phase === 'picking' && !state.picks.length) {
+        ring.hide();
         startShuffle();
       }
     }
@@ -1654,8 +1918,8 @@ addEventListener('resize', () => {
     sky.init();
     fx.resize();
     gallery.resize();
-    if (state.phase === 'idle' || state.phase === 'choosing') state.els.forEach((el, i) => place(el, stackPos(i)));
-    if (state.phase === 'picking' && !state.dealing) dealFan(false);
+    if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
+    if (state.phase === 'picking' || state.phase === 'dealing') ring.layout();
     if (state.phase !== 'shuffling') relayoutPlaced();
     updateHint();
     drawLines(false);
@@ -1664,4 +1928,4 @@ addEventListener('resize', () => {
 
 buildStack();
 renderSlots();
-updateIntro();
+showLanding();

@@ -673,6 +673,7 @@ function setAura(key) {
   aura.style.opacity = 0;
   setTimeout(() => { aura.style.setProperty('--aura', rgb); aura.style.opacity = 1; }, 250);
   home.style.setProperty('--accent-rgb', rgb);
+  $('#wheel').style.setProperty('--accent-rgb', rgb);
 }
 
 function showScreen(name) {
@@ -681,11 +682,20 @@ function showScreen(name) {
   if (name === 'home') orbit.start(); else orbit.stop();
 }
 
-// 六個情境排在中央牌卡周圍的橢圓軌道上；轉到正前方（角度 90°）的就是選到的情境
+// 情境排在中央牌卡周圍的橢圓軌道上；轉到正前方（角度 90°）的就是選到的情境。
+// 今天已經抽過每日一牌時，每日一牌就從軌道上收起來。
 const orbit = (() => {
-  const root = $('#orbit'), orbs = [...root.querySelectorAll('.orb')], card = root.querySelector('.orbit-card');
-  const n = orbs.length, stepA = (Math.PI * 2) / n;
-  let base = Math.PI / 2, target = base, drag = null, raf = 0;
+  const root = $('#orbit'), card = root.querySelector('.orbit-card');
+  let orbs = [], keys = [], stepA = 1, base = Math.PI / 2, target = base, drag = null, raf = 0;
+
+  function refresh() {
+    const all = [...root.querySelectorAll('.orb')];
+    const showDaily = !todayDaily();
+    all.forEach((o) => (o.hidden = o.dataset.scene === 'daily' && !showDaily));
+    orbs = all.filter((o) => !o.hidden);
+    keys = orbs.map((o) => o.dataset.scene);
+    stepA = (Math.PI * 2) / orbs.length;
+  }
 
   function frame() {
     base += (target - base) * 0.12;
@@ -701,7 +711,7 @@ const orbit = (() => {
   }
 
   function select(i) {
-    const sel = ((i % n) + n) % n;
+    const n = orbs.length, sel = ((i % n) + n) % n;
     let t = Math.PI / 2 - sel * stepA; // 走最短的方向轉過去
     while (t - base > Math.PI) t -= Math.PI * 2;
     while (t - base < -Math.PI) t += Math.PI * 2;
@@ -710,7 +720,7 @@ const orbit = (() => {
     card.classList.remove('spin');
     void card.offsetWidth;
     card.classList.add('spin');
-    selectScene(SCENE_KEYS[sel]);
+    selectScene(keys[sel]);
   }
 
   root.addEventListener('pointerdown', (e) => {
@@ -743,11 +753,14 @@ const orbit = (() => {
   });
 
   return {
-    select: (key) => select(SCENE_KEYS.indexOf(key)),
+    select(key) { refresh(); select(Math.max(keys.indexOf(key), 0)); },
     start() { if (!raf) raf = requestAnimationFrame(frame); },
     stop() { cancelAnimationFrame(raf); raf = 0; },
   };
 })();
+
+// 每個情境目前選的牌陣（預設是最推薦的那個）
+const sceneSpread = {};
 
 function selectScene(key) {
   state.sceneKey = key;
@@ -757,52 +770,155 @@ function selectScene(key) {
   home.querySelector('.scene-sub').textContent = info.sub;
   setAura(key);
   const daily = key === 'daily';
-  $('#sceneBody').hidden = daily;
-  $('#dailyBody').hidden = !daily;
-  if (daily) {
-    const today = todayDaily();
-    $('#dailyBtn').textContent = today ? `回顧今天的牌 · ${CARD_BY_FILE[today.picks[0].file]?.zh || ''}` : '抽今天的牌';
-    $('#dailyBody .sub').textContent = today ? '一天只能抽一張，明天再來吧' : '深呼吸，想著今天的自己';
+  home.classList.toggle('daily', daily);
+  if (!daily) {
+    setTopic(key);
+    store.set('starTarot.scene', key);
+  }
+  updateStart();
+}
+
+function updateStart() {
+  const key = state.sceneKey;
+  if (key === 'daily') {
+    $('#startBtn .t').textContent = '抽今天的牌';
+    $('#startBtn .s').textContent = '每日一牌 · 1 張';
     return;
   }
-  setTopic(key);
-  store.set('starTarot.scene', key);
-  const recs = TOPIC_SPREADS[key];
-  const all = [...recs, ...Object.keys(SPREADS).filter((k) => k !== 'one' && !recs.includes(k))];
-  $('#spreadRail').innerHTML = all.map((k, i) => {
-    const sp = SPREADS[k];
-    return `<button class="sp-card ${i === 0 ? 'hot' : ''} ${i >= recs.length ? 'more' : ''}" data-spread="${k}">
-      ${i === 0 ? '<span class="badge">推薦</span>' : ''}
-      ${spreadDiagram(k)}
-      <span class="sp-name">${sp.name}</span>
-      <span class="sp-count">${sp.positions.length} cards</span>
-      <span class="sp-blurb">${sp.blurb}</span>
-    </button>`;
-  }).join('');
-  $('#spreadRail').scrollLeft = 0;
+  const sp = sceneSpread[key] || TOPIC_SPREADS[key][0];
+  sceneSpread[key] = sp;
+  $('#startBtn .t').textContent = '開始洗牌';
+  $('#startBtn .s').textContent = `${SPREADS[sp].name} · ${SPREADS[sp].positions.length} 張`;
+  $('#spreadBtn').innerHTML = spreadDiagram(sp);
 }
 
-// 回到起始頁；沒指定情境時，今天還沒抽每日一牌就先推薦它
+// 回到起始頁；今天還沒抽每日一牌就先停在每日一牌，抽過了就回到上次的情境
 function showHome(key) {
   showScreen('home');
-  orbit.select(key || (todayDaily() ? store.get('starTarot.scene', 'general') : 'daily'));
-  $('#orbit .orb[data-scene="daily"]').classList.toggle('nudge', !todayDaily());
-  home.scrollTop = 0;
+  const pick = !todayDaily() && !key ? 'daily' : key && key !== 'daily' ? key : store.get('starTarot.scene', 'general');
+  orbit.select(pick);
+  wheel.close(true);
 }
 
-home.addEventListener('click', (e) => {
+$('#startBtn').addEventListener('click', () => {
   if (state.phase !== 'idle') return;
-  const b = e.target.closest('[data-spread]');
-  if (b) { sound.unlock(); startReading(b.dataset.spread); return; }
-  if (e.target.closest('#dailyBtn')) {
-    sound.unlock();
-    const today = todayDaily();
-    if (today) return openSheet(readingFromHistory(today), 'calendar');
+  sound.unlock();
+  if (state.sceneKey === 'daily') {
+    if (todayDaily()) return showHome();
     setTopic('general');
     $('#question').value = '';
     startReading('one');
+  } else {
+    startReading(sceneSpread[state.sceneKey]);
   }
 });
+
+/* ================= 牌陣輪盤 ================= */
+// 右側的牌陣按鈕展開成一個可以旋轉的輪盤；轉到正上方的就是選中的牌陣
+const wheel = (() => {
+  const root = $('#wheel'), dial = root.querySelector('.dial'), hub = root.querySelector('.hub');
+  let items = [], keys = [], step = 0, rot = 0, target = 0, drag = null, raf = 0, sel = 0;
+
+  function build() {
+    const recs = TOPIC_SPREADS[state.sceneKey];
+    keys = [...recs, ...Object.keys(SPREADS).filter((k) => k !== 'one' && !recs.includes(k))];
+    step = 360 / keys.length;
+    dial.innerHTML = keys.map((k, i) => `<button class="wi ${i === 0 ? 'rec' : ''}" data-i="${i}" style="--a:${i * step}deg">
+      ${spreadDiagram(k)}<span>${SPREADS[k].name}</span>${i === 0 ? '<em>推薦</em>' : ''}</button>`).join('');
+    items = [...dial.children];
+  }
+
+  function frame() {
+    rot += (target - rot) * 0.16;
+    dial.style.setProperty('--rot', `${rot}deg`);
+    raf = Math.abs(target - rot) > 0.05 || drag ? requestAnimationFrame(frame) : 0;
+  }
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+
+  function focus(i, animate = true) {
+    const n = keys.length;
+    sel = ((i % n) + n) % n;
+    let t = -sel * step;
+    while (t - rot > 180) t -= 360;
+    while (t - rot < -180) t += 360;
+    target = t;
+    if (!animate) rot = t;
+    items.forEach((el, k) => el.classList.toggle('on', k === sel));
+    const sp = SPREADS[keys[sel]];
+    hub.querySelector('.hd').innerHTML = spreadDiagram(keys[sel]);
+    hub.querySelector('.hn').textContent = sp.name;
+    hub.querySelector('.hc').textContent = `${sp.positions.length} cards`;
+    hub.querySelector('.hb').textContent = sp.blurb;
+    kick();
+  }
+
+  function open() {
+    if (state.sceneKey === 'daily') return;
+    build();
+    // 從右側按鈕的位置展開
+    const b = $('#spreadBtn').getBoundingClientRect();
+    root.style.setProperty('--ox', `${b.left + b.width / 2}px`);
+    root.style.setProperty('--oy', `${b.top + b.height / 2}px`);
+    focus(Math.max(keys.indexOf(sceneSpread[state.sceneKey]), 0), false);
+    root.hidden = false;
+    void root.offsetWidth;
+    root.classList.add('open');
+    sound.whoosh();
+  }
+
+  function close(instant) {
+    if (root.hidden) return;
+    root.classList.remove('open');
+    if (instant) root.hidden = true;
+    else setTimeout(() => { if (!root.classList.contains('open')) root.hidden = true; }, 380);
+  }
+
+  function choose() {
+    sceneSpread[state.sceneKey] = keys[sel];
+    updateStart();
+    close();
+    const b = $('#spreadBtn');
+    b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+  }
+
+  const angleAt = (e) => {
+    const r = dial.getBoundingClientRect();
+    return Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) / DEG;
+  };
+  dial.addEventListener('pointerdown', (e) => {
+    drag = { a: angleAt(e), moved: 0 };
+    dial.setPointerCapture(e.pointerId);
+  });
+  dial.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    let d = angleAt(e) - drag.a;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    drag.a += d;
+    drag.moved += Math.abs(d);
+    rot += d;
+    target = rot;
+    kick();
+  });
+  dial.addEventListener('pointerup', (e) => {
+    const d = drag;
+    drag = null;
+    if (!d) return;
+    if (d.moved < 4) {
+      const hit = document.elementsFromPoint(e.clientX, e.clientY).find((x) => x.classList?.contains('wi'));
+      if (hit) { +hit.dataset.i === sel ? choose() : focus(+hit.dataset.i); }
+      return;
+    }
+    focus(Math.round(-rot / step));
+  });
+  root.addEventListener('click', (e) => {
+    if (e.target.closest('.hub-ok')) choose();
+    else if (e.target === root || e.target.closest('.wheel-close')) close();
+  });
+  $('#spreadBtn').addEventListener('click', open);
+
+  return { open, close };
+})();
 
 // 牌陣的縮圖：用直式排法畫出每個牌位的小方塊
 function spreadDiagram(key) {
@@ -1966,7 +2082,7 @@ $('#soundBtn').addEventListener('click', (e) => {
   e.currentTarget.classList.toggle('off', state.muted);
 });
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { closeModal(); sheet.hidden = true; share.hidden = true; closeTooltip(); }
+  if (e.key === 'Escape') { wheel.close(); closeModal(); sheet.hidden = true; share.hidden = true; closeTooltip(); }
 });
 
 // 搖一搖洗牌

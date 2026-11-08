@@ -50,19 +50,33 @@
     <button class="orb" data-scene="general"><span class="orb-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="10.5" r="6.5"/><path d="M7.5 17.5h9l1 2.5h-11z"/><path d="M9.5 8.5a3 3 0 0 1 2.5-1.5"/></svg></span><span class="orb-name">綜合</span></button>
   </div>
   <div class="scene-info"><p class="scene-en"></p><h2></h2><p class="scene-sub"></p></div>
-  <div id="sceneBody">
+  <div id="homeBottom">
     <div id="qBox">
       <input id="question" maxlength="60" placeholder="在心中默念，或寫下你的問題" autocomplete="off">
       <button id="ideaBtn" type="button" title="換一個問題靈感">靈感</button>
     </div>
-    <p class="label">Choose your spread</p>
-    <div id="spreadRail"></div>
-  </div>
-  <div id="dailyBody" hidden>
-    <button class="primary" id="dailyBtn">抽今天的牌</button>
-    <p class="sub"></p>
+    <p class="daily-note">深呼吸，想著今天的自己</p>
+    <div class="start-row">
+      <button class="primary" id="startBtn"><span class="t">開始洗牌</span><span class="s"></span></button>
+      <button id="spreadBtn" title="選擇牌陣" aria-label="選擇牌陣"></button>
+    </div>
   </div>
 </section>
+
+<div id="wheel" hidden>
+  <button class="wheel-close" aria-label="關閉">✕</button>
+  <p class="label wheel-title">Choose your spread</p>
+  <div class="dial">
+  </div>
+  <div class="hub">
+    <span class="hd"></span>
+    <span class="hn"></span>
+    <span class="hc"></span>
+    <span class="hb"></span>
+    <button class="hub-ok">選這個牌陣</button>
+  </div>
+  <p class="wheel-tip">轉動輪盤，或點選牌陣</p>
+</div>
 
 <p id="hint"></p>
 

@@ -276,15 +276,55 @@ const SPREADS = {
     ],
     edges: [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3]],
   },
+  heart: {
+    name: '對方的心',
+    blurb: '看懂對方怎麼看你、真正的感受與接下來的打算',
+    positions: [
+      { name: '他怎麼看你', desc: '對方眼中的你', x: -1.2, y: 0 },
+      { name: '真正的感受', desc: '對方心裡的感覺', x: 0, y: 0 },
+      { name: '接下來的打算', desc: '對方之後可能的行動', x: 1.2, y: 0 },
+    ],
+    edges: [[0, 1], [1, 2]],
+  },
+  people: {
+    name: '職場人際',
+    blurb: '看清你在團隊中的位置，以及和同事、主管的相處之道',
+    positions: [
+      { name: '你的位置', desc: '你在職場裡的狀態', x: -1.2, y: 0 },
+      { name: '周遭的人', desc: '同事與主管的能量', x: 0, y: 0 },
+      { name: '相處之道', desc: '改善關係的方法', x: 1.2, y: 0 },
+    ],
+    edges: [[0, 1], [1, 2]],
+  },
+  exam: {
+    name: '考試運勢',
+    blurb: '看準備狀態、該注意的地方與考試結果',
+    positions: [
+      { name: '準備狀態', desc: '你目前準備得如何', x: -1.2, y: 0 },
+      { name: '需要注意', desc: '考前最該留意的事', x: 0, y: 0 },
+      { name: '考試結果', desc: '照目前努力可能的結果', x: 1.2, y: 0 },
+    ],
+    edges: [[0, 1], [1, 2]],
+  },
+  heal: {
+    name: '情緒療癒',
+    blurb: '溫柔地看見現在的情緒、它的根源與療癒的方法',
+    positions: [
+      { name: '現在的情緒', desc: '你此刻真實的感受', x: -1.2, y: 0 },
+      { name: '情緒的根源', desc: '這份感受從哪裡來', x: 0, y: 0 },
+      { name: '療癒的方法', desc: '照顧自己的方式', x: 1.2, y: 0 },
+    ],
+    edges: [[0, 1], [1, 2]],
+  },
 };
 
-// 依問題類型推薦的牌陣，第一個最推薦
+// 每個情境適用的牌陣（輪盤裡只會列出這些），第一個最推薦
 const TOPIC_SPREADS = {
-  general: ['theme', 'choice', 'celtic'],
-  love: ['love', 'theme', 'choice'],
-  career: ['career', 'choice', 'theme'],
-  study: ['study', 'choice', 'theme'],
-  self: ['self', 'theme', 'celtic'],
+  general: ['theme', 'celtic', 'choice'],
+  love: ['love', 'heart', 'theme'],
+  career: ['career', 'people', 'celtic'],
+  study: ['study', 'exam', 'choice'],
+  self: ['self', 'heal', 'theme'],
 };
 
 function relationOf(a, b) {

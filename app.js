@@ -671,16 +671,20 @@ function onCardClick(e) {
 
 /* ================= 起始頁：星座軌道選情境 ================= */
 const home = $('#home');
-const SCENE_KEYS = ['daily', 'love', 'career', 'study', 'self', 'general'];
+// 五個情境依序編號 I～V；每日一牌與隨手一抽是特別模式，不編號
+const TOPIC_KEYS = ['love', 'career', 'study', 'self', 'general'];
+const ROMAN_N = ['I', 'II', 'III', 'IV', 'V'];
 const SCENES = {
-  daily: { name: '每日一牌', en: 'I · The Daily Card', sub: '今天的指引，一天只能抽一張' },
-  love: { name: '感情', en: 'II · Love', sub: '靜下心，想著那個人，或那段關係' },
-  career: { name: '事業', en: 'III · Career', sub: '想著你在工作上的處境與抉擇' },
-  study: { name: '學業', en: 'IV · Study', sub: '想著你的學習目標，或眼前的考試' },
-  self: { name: '自我成長', en: 'V · Inner Self', sub: '把注意力，慢慢放回自己身上' },
-  general: { name: '綜合', en: 'VI · Any Question', sub: '在心中默念，任何你想問的事' },
+  daily: { name: '每日一牌', en: 'The Daily Card', sub: '今天的指引，一天只能抽一張', note: '深呼吸，想著今天的自己' },
+  quick: { name: '隨手一抽', en: 'Quick Draw', sub: '不用情境、不用牌陣，讓一張牌幫你決定', note: '心裡想著那件決定不了的事' },
+  love: { name: '感情', en: 'Love', sub: '靜下心，想著那個人，或那段關係' },
+  career: { name: '事業', en: 'Career', sub: '想著你在工作上的處境與抉擇' },
+  study: { name: '學業', en: 'Study', sub: '想著你的學習目標，或眼前的考試' },
+  self: { name: '自我成長', en: 'Inner Self', sub: '把注意力，慢慢放回自己身上' },
+  general: { name: '綜合', en: 'Any Question', sub: '在心中默念，任何你想問的事' },
 };
-const AURA = { daily: '232,200,119', general: '120,90,220', love: '255,110,170', career: '240,180,80', study: '80,180,255', self: '160,120,255' };
+const AURA = { daily: '232,200,119', quick: '90,210,200', general: '120,90,220', love: '255,110,170', career: '240,180,80', study: '80,180,255', self: '160,120,255' };
+const isSpecial = (key) => key === 'daily' || key === 'quick';
 
 function setAura(key) {
   const rgb = AURA[key] || AURA.general;
@@ -693,6 +697,7 @@ function setAura(key) {
 
 function showScreen(name) {
   home.classList.toggle('show', name === 'home');
+  $('#quick').classList.toggle('show', name === 'quick');
   state.screen = name;
   if (name === 'home') orbit.start(); else orbit.stop();
 }
@@ -782,13 +787,15 @@ const sceneSpread = {};
 function selectScene(key) {
   state.sceneKey = key;
   const info = SCENES[key];
-  home.querySelector('.scene-en').textContent = info.en;
+  const n = TOPIC_KEYS.indexOf(key);
+  home.querySelector('.scene-en').textContent = n >= 0 ? `${ROMAN_N[n]} · ${info.en}` : info.en;
   home.querySelector('.scene-info h2').textContent = info.name;
   home.querySelector('.scene-sub').textContent = info.sub;
   setAura(key);
-  const daily = key === 'daily';
-  home.classList.toggle('daily', daily);
-  if (!daily) {
+  const special = isSpecial(key);
+  home.classList.toggle('daily', special);
+  if (special) home.querySelector('.daily-note').textContent = info.note;
+  else {
     setTopic(key);
     store.set('starTarot.scene', key);
   }
@@ -800,6 +807,11 @@ function updateStart() {
   if (key === 'daily') {
     $('#startBtn .t').textContent = '抽今天的牌';
     $('#startBtn .s').textContent = '每日一牌 · 1 張';
+    return;
+  }
+  if (key === 'quick') {
+    $('#startBtn .t').textContent = '隨手抽一張';
+    $('#startBtn .s').textContent = '從卡夾抽出一張牌';
     return;
   }
   const sp = sceneSpread[key] || TOPIC_SPREADS[key][0];
@@ -826,10 +838,142 @@ $('#startBtn').addEventListener('click', () => {
     setTopic('general');
     $('#question').value = '';
     startReading('one');
+  } else if (state.sceneKey === 'quick') {
+    quick.open();
   } else {
     startReading(sceneSpread[state.sceneKey]);
   }
 });
+
+/* ================= 隨手一抽 ================= */
+// 從卡夾往上拉出一張牌（或輕點卡夾），牌飛到中央翻開，直接告訴你要不要做
+const quick = (() => {
+  const root = $('#quick'), box = root.querySelector('.case'), peek = root.querySelector('.peek');
+  const result = root.querySelector('.q-result'), layer = $('#qLayer');
+  let drag = null, busy = false, cur = null, el = null;
+
+  function open() {
+    reset();
+    setAura('quick');
+    showScreen('quick');
+  }
+
+  function reset() {
+    busy = false;
+    cur = null;
+    if (el) { live.detach(el.querySelector('.front')); el.remove(); el = null; }
+    root.classList.remove('pulled', 'done');
+    result.hidden = true;
+    peek.style.transform = '';
+  }
+
+  // 卡片定位：中央大牌，翻開後往上移，下面留給結論
+  const bigRect = () => {
+    const w = Math.min(innerWidth * 0.46, 220, (innerHeight * 0.46) / CARD_RATIO);
+    return { x: innerWidth / 2, y: innerHeight * 0.44, w, h: w * CARD_RATIO, rot: 0 };
+  };
+  const smallRect = () => {
+    const h = Math.min(innerHeight * 0.36, 300), w = h / CARD_RATIO;
+    return { x: innerWidth / 2, y: headerBottom() + 14 + h / 2, w, h, rot: 0 };
+  };
+
+  async function pull() {
+    if (busy) return;
+    busy = true;
+    sound.unlock();
+    const card = CARDS[Math.floor(rand() * CARDS.length)];
+    const reversed = rand() < 0.35;
+    cur = { card, reversed };
+    // 1. 牌從卡夾裡抽出來
+    const r = peek.getBoundingClientRect();
+    el = makeCard();
+    el.querySelector('img').src = thumb(card);
+    el.classList.toggle('reversed', reversed);
+    layer.appendChild(el);
+    el.style.transitionDuration = '0s';
+    place(el, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, rot: 0 });
+    root.classList.add('pulled');
+    sound.whoosh();
+    void el.offsetWidth;
+    // 2. 往上滑出，再落到畫面中央
+    const big = bigRect();
+    el.style.transitionDuration = '0s';
+    const up = { ...big, y: Math.min(r.top - big.h * 0.25, big.y - 40), rot: -6 };
+    const kf = (p) => ({ transform: cardTransform(p), width: `${p.w}px`, height: `${p.h}px` });
+    const start = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, rot: 0 };
+    await el.animate([kf(start), { ...kf({ ...start, y: start.y - r.height * 0.9 }), offset: 0.35 }, { ...kf(up), offset: 0.7 }, kf(big)],
+      { duration: 1100, easing: 'cubic-bezier(.45,.05,.25,1)' }).finished.catch(() => {});
+    place(el, big);
+    await Promise.race([el.querySelector('img').decode().catch(() => {}), sleep(1500)]);
+    // 3. 蓄力：魔法陣、光芒
+    const kind = KIND_FX[kindOf(card)];
+    el.classList.add('charging');
+    fx.magic(big.x, big.y, big.h * 0.62, kind.color);
+    setTimeout(() => fx.magic(big.x, big.y, big.h * 0.85, kind.color), 260);
+    sound.charge();
+    await sleep(700);
+    // 4. 翻牌與揭曉
+    el.classList.remove('charging');
+    el.classList.add('flipping', 'flipped');
+    if (navigator.vibrate) navigator.vibrate([10, 40, 22]);
+    await sleep(380);
+    fx.burst(big.x, big.y, 120, 9, kind.burst);
+    flash(kind.color);
+    sound.chime(3);
+    await sleep(550);
+    el.classList.remove('flipping');
+    el.classList.add('shine');
+    live.attach(el.querySelector('.front'), card);
+    // 5. 牌往上讓位，下面出現結論
+    el.style.transitionDuration = '.7s';
+    place(el, smallRect());
+    showResult();
+  }
+
+  function showResult() {
+    const { card, reversed } = cur;
+    const v = quickVerdict(card, reversed);
+    const p = { card, reversed };
+    result.className = `q-result v-${v.key}`;
+    result.querySelector('.q-en').textContent = v.en;
+    result.querySelector('.q-verdict').textContent = v.zh;
+    result.querySelector('.q-line').textContent = v.line;
+    result.querySelector('.q-card').innerHTML = `${card.zh}<span>${orientOf(p)} · ${kwOf(p)}</span>`;
+    result.querySelector('.q-advice').textContent = card.advice;
+    const sr = smallRect();
+    result.style.top = `${sr.y + sr.h / 2 + 18}px`;
+    result.hidden = false;
+    root.classList.add('done');
+  }
+
+  // 往上拉卡夾裡的牌：拉超過一段距離就抽出；輕點也可以
+  box.addEventListener('pointerdown', (e) => {
+    if (busy) return;
+    drag = { y: e.clientY, dy: 0 };
+    box.setPointerCapture(e.pointerId);
+  });
+  box.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    drag.dy = Math.min(0, e.clientY - drag.y);
+    peek.style.transform = `translateY(${drag.dy}px)`;
+    if (drag.dy < -70) { drag = null; pull(); }
+  });
+  box.addEventListener('pointerup', () => {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    if (d.dy > -8) pull();
+    else peek.style.transform = '';
+  });
+  root.addEventListener('click', (e) => {
+    const act = e.target.closest('[data-q]')?.dataset.q;
+    if (act === 'again') { reset(); sound.riffle(); }
+    else if (act === 'detail' && cur) openModal(cur, true);
+    else if (act === 'home' || e.target.closest('.q-back')) { reset(); showHome('quick'); }
+  });
+
+  return { open, reset, relayout() { if (el && root.classList.contains('done')) { place(el, smallRect()); showResult(); } } };
+})();
 
 /* ================= 牌陣輪盤 ================= */
 // 右側的牌陣按鈕展開成一個可以旋轉的輪盤；轉到正上方的就是選中的牌陣
@@ -839,7 +983,7 @@ const wheel = (() => {
 
   function build() {
     const recs = TOPIC_SPREADS[state.sceneKey];
-    keys = [...recs, ...Object.keys(SPREADS).filter((k) => k !== 'one' && !recs.includes(k))];
+    keys = [...recs];
     step = 360 / keys.length;
     dial.innerHTML = keys.map((k, i) => `<button class="wi ${i === 0 ? 'rec' : ''}" data-i="${i}" style="--a:${i * step}deg">
       ${spreadDiagram(k)}<span>${SPREADS[k].name}</span>${i === 0 ? '<em>推薦</em>' : ''}</button>`).join('');
@@ -2195,6 +2339,7 @@ addEventListener('resize', () => {
     gallery.resize();
     if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
     if (state.phase === 'picking' || state.phase === 'dealing') ring.layout();
+    if (state.screen === 'quick') quick.relayout();
     if (state.phase !== 'shuffling') relayoutPlaced();
     updateHint();
     drawLines(false);

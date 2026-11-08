@@ -30,6 +30,18 @@ const POS_LENS = {
   'A 的結果': (kw) => `選擇 A 最後的結果是「${kw}」`,
   'B 的發展': (kw) => `選擇 B 之後，過程會經歷「${kw}」`,
   'B 的結果': (kw) => `選擇 B 最後的結果是「${kw}」`,
+  他怎麼看你: (kw) => `在對方眼中，你給人「${kw}」的感覺`,
+  真正的感受: (kw) => `對方心裡真正的感受是「${kw}」`,
+  接下來的打算: (kw) => `對方接下來可能會朝「${kw}」的方向行動`,
+  你的位置: (kw) => `你在職場中正處於「${kw}」的狀態`,
+  周遭的人: (kw) => `周遭同事與主管帶來「${kw}」的能量`,
+  相處之道: (kw) => `改善關係的關鍵在於「${kw}」`,
+  準備狀態: (kw) => `你目前的準備狀態是「${kw}」`,
+  需要注意: (kw) => `考前最需要留意的是「${kw}」`,
+  考試結果: (kw) => `照目前的努力，結果會朝「${kw}」發展`,
+  現在的情緒: (kw) => `你此刻真實的感受是「${kw}」`,
+  情緒的根源: (kw) => `這份感受的根源與「${kw}」有關`,
+  療癒的方法: (kw) => `照顧自己的方式是「${kw}」`,
   核心課題: (kw) => `你現在最重要的成長功課是「${kw}」`,
   身體: (kw) => `身體與生活狀態在提醒你「${kw}」`,
   心理: (kw) => `你的情緒與想法正處在「${kw}」`,
@@ -215,8 +227,8 @@ const QUESTION_IDEAS = {
 };
 
 // ---------- 總結：放在完整解讀最前面的一段話 ----------
-const CORE_POS = ['主題', '核心課題', '現況', '關係現況', '目前狀態', '今日指引'];
-const END_POS = ['未來', '結果', '未來發展', '可能結果'];
+const CORE_POS = ['主題', '核心課題', '現況', '關係現況', '目前狀態', '今日指引', '真正的感受', '你的位置', '準備狀態', '現在的情緒'];
+const END_POS = ['未來', '結果', '未來發展', '可能結果', '接下來的打算', '相處之道', '考試結果', '療癒的方法'];
 
 function summaryReading(picks, spreadKey, spread, topic) {
   const posOf = (p) => spread.positions[p.slot].name;
@@ -247,4 +259,16 @@ function summaryReading(picks, spreadKey, spread, topic) {
   if (t.field) lines.push(`在${t.zh}上：${topicLine(core, topic)}`);
   const adviceCard = end || core;
   return { text: lines.join(''), advice: adviceCard.card.advice, core, end };
+}
+
+// ---------- 隨手一抽：用一張牌回答「要不要做」 ----------
+// 這些牌正位時偏向阻礙或提醒，其餘的牌正位時偏向支持
+const CAUTION = new Set(['Tower', 'Devil', 'Moon', 'Death', 'HangedMan', 'FiveWands', 'TenWands', 'FourCups', 'FiveCups',
+  'EightCups', 'ThreeSwords', 'FiveSwords', 'SevenSwords', 'EightSwords', 'NineSwords', 'TenSwords', 'TwoSwords', 'FivePentacles', 'FourPentacles']);
+function quickVerdict(card, reversed) {
+  const good = !CAUTION.has(card.file);
+  if (good && !reversed) return { key: 'yes', en: 'Yes', zh: '去做吧', line: '牌面的能量是順的，相信自己，放手去做吧。' };
+  if (good && reversed) return { key: 'wait', en: 'Not yet', zh: '時機未到', line: '方向沒有錯，只是時機還沒成熟，再等一等、多準備一點。' };
+  if (!good && reversed) return { key: 'think', en: 'Think again', zh: '再想想', line: '阻礙正在鬆動，但還有沒看清楚的地方，多想一下再決定。' };
+  return { key: 'no', en: 'No', zh: '先不要', line: '這次的能量不太支持，先停下來，不做也是一種選擇。' };
 }

@@ -653,12 +653,12 @@ function onCardClick(e) {
 const home = $('#home');
 const SCENE_KEYS = ['daily', 'love', 'career', 'study', 'self', 'general'];
 const SCENES = {
-  daily: { name: '每日一牌', sub: '今天的指引，一天只能抽一張' },
-  love: { name: '感情', sub: '靜下心，想著那個人或那段關係' },
-  career: { name: '事業', sub: '想著你工作上的處境或抉擇' },
-  study: { name: '學業', sub: '想著你的學習目標或考試' },
-  self: { name: '自我成長', sub: '把注意力放回自己身上' },
-  general: { name: '綜合', sub: '在心中默念你想問的事' },
+  daily: { name: '每日一牌', en: 'I · The Daily Card', sub: '今天的指引，一天只能抽一張' },
+  love: { name: '感情', en: 'II · Love', sub: '靜下心，想著那個人，或那段關係' },
+  career: { name: '事業', en: 'III · Career', sub: '想著你在工作上的處境與抉擇' },
+  study: { name: '學業', en: 'IV · Study', sub: '想著你的學習目標，或眼前的考試' },
+  self: { name: '自我成長', en: 'V · Inner Self', sub: '把注意力，慢慢放回自己身上' },
+  general: { name: '綜合', en: 'VI · Any Question', sub: '在心中默念，任何你想問的事' },
 };
 const AURA = { daily: '232,200,119', general: '120,90,220', love: '255,110,170', career: '240,180,80', study: '80,180,255', self: '160,120,255' };
 
@@ -747,33 +747,34 @@ const orbit = (() => {
 function selectScene(key) {
   state.sceneKey = key;
   const info = SCENES[key];
-  home.querySelector('.scene-info h2').textContent = key === 'daily' ? info.name : `${info.name}占卜`;
-  home.querySelector('.scene-info p').textContent = info.sub;
+  home.querySelector('.scene-en').textContent = info.en;
+  home.querySelector('.scene-info h2').textContent = info.name;
+  home.querySelector('.scene-sub').textContent = info.sub;
   setAura(key);
   const daily = key === 'daily';
   $('#sceneBody').hidden = daily;
   $('#dailyBody').hidden = !daily;
   if (daily) {
     const today = todayDaily();
-    $('#dailyBtn').textContent = today ? `查看今天的牌：${CARD_BY_FILE[today.picks[0].file]?.zh || ''}` : '✦ 抽今天的牌';
-    $('#dailyBody .sub').textContent = today ? '每日一牌一天只能抽一張，明天再來吧' : '深呼吸，想著今天的自己';
+    $('#dailyBtn').textContent = today ? `回顧今天的牌 · ${CARD_BY_FILE[today.picks[0].file]?.zh || ''}` : '抽今天的牌';
+    $('#dailyBody .sub').textContent = today ? '一天只能抽一張，明天再來吧' : '深呼吸，想著今天的自己';
     return;
   }
   setTopic(key);
   store.set('starTarot.scene', key);
   const recs = TOPIC_SPREADS[key];
-  const more = Object.keys(SPREADS).filter((k) => k !== 'one' && !recs.includes(k));
-  $('#spreadRail').innerHTML = recs.map((k, i) => {
+  const all = [...recs, ...Object.keys(SPREADS).filter((k) => k !== 'one' && !recs.includes(k))];
+  $('#spreadRail').innerHTML = all.map((k, i) => {
     const sp = SPREADS[k];
-    return `<button class="sp-card ${i === 0 ? 'hot' : ''}" data-spread="${k}">
-      ${i === 0 ? `<span class="badge">${key === 'general' ? '推薦' : `適合${info.name}`}</span>` : ''}
+    return `<button class="sp-card ${i === 0 ? 'hot' : ''} ${i >= recs.length ? 'more' : ''}" data-spread="${k}">
+      ${i === 0 ? '<span class="badge">推薦</span>' : ''}
       ${spreadDiagram(k)}
-      <span class="sp-name">${sp.name}<span class="sp-count">${sp.positions.length} 張</span></span>
+      <span class="sp-name">${sp.name}</span>
+      <span class="sp-count">${sp.positions.length} cards</span>
       <span class="sp-blurb">${sp.blurb}</span>
     </button>`;
   }).join('');
   $('#spreadRail').scrollLeft = 0;
-  home.querySelector('.chooser-more .chips').innerHTML = more.map((k) => `<button data-spread="${k}">${SPREADS[k].name}</button>`).join('');
 }
 
 // 回到起始頁；沒指定情境時，今天還沒抽每日一牌就先推薦它

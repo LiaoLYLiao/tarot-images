@@ -213,3 +213,38 @@ const QUESTION_IDEAS = {
   study: ['我該怎麼準備，才能考出好成績？', '這個科系或方向適合我嗎？', '我讀書效率不好的原因是什麼？', '要不要繼續進修或出國念書？', '我該如何平衡課業與生活？'],
   self: ['我現在最需要放下的是什麼？', '我內心真正渴望的是什麼？', '我該如何更愛自己？', '阻礙我成長的模式是什麼？', '接下來我該培養什麼能力？'],
 };
+
+// ---------- 總結：放在完整解讀最前面的一段話 ----------
+const CORE_POS = ['主題', '核心課題', '現況', '關係現況', '目前狀態', '今日指引'];
+const END_POS = ['未來', '結果', '未來發展', '可能結果'];
+
+function summaryReading(picks, spreadKey, spread, topic) {
+  const posOf = (p) => spread.positions[p.slot].name;
+  const core = picks.find((p) => CORE_POS.includes(posOf(p))) || picks.find((p) => p.card.major) || picks[0];
+  const end = picks.find((p) => END_POS.includes(posOf(p)));
+  // 整體走向：正位加分、逆位扣分，最後一張牌的份量加倍
+  const score = picks.reduce((s, p) => s + (p.reversed ? -1 : 1) * (p === end ? 2 : 1), 0);
+  const max = picks.length + (end ? 1 : 0);
+  const tone = score >= max * 0.5 ? '整體偏向正面，事情正朝好的方向流動'
+    : score > 0 ? '整體有起有落，順利之中也藏著需要留意的地方'
+    : '整體能量有些卡住，這是提醒你停下來調整方向的時候';
+  const t = TOPICS[topic];
+  const lines = [];
+  if (picks.length === 1) {
+    lines.push(`今天的關鍵字是「${kwOf(core)}」。`);
+  } else {
+    lines.push(`${tone}。`);
+    lines.push(`這次的關鍵在「${core.card.zh}」（${orientOf(core)}）：${kwOf(core)}。`);
+  }
+  if (spreadKey === 'choice') {
+    const at = (n) => picks.find((p) => posOf(p) === n);
+    const sc = (a, b) => (a.reversed ? -1 : 1) + (b.reversed ? -2 : 2);
+    const a = sc(at('A 的發展'), at('A 的結果')), b = sc(at('B 的發展'), at('B 的結果'));
+    lines.push(a === b ? '兩個選項的能量相當，回到你真正在乎的事來決定。' : `比較起來，選擇 ${a > b ? 'A' : 'B'} 的能量比較順暢。`);
+  } else if (end && end !== core) {
+    lines.push(`走向上，「${end.card.zh}」${end.reversed ? '是逆位，提醒你目前的方向需要調整' : `帶來「${kwOf(end)}」`}。`);
+  }
+  if (t.field) lines.push(`在${t.zh}上：${topicLine(core, topic)}`);
+  const adviceCard = end || core;
+  return { text: lines.join(''), advice: adviceCard.card.advice, core, end };
+}

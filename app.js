@@ -759,6 +759,8 @@ const orbit = (() => {
   };
 })();
 
+$('#spreadBtn').innerHTML = `<svg class="sb-ring" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30"/><circle cx="32" cy="32" r="25" class="thin"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(0 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(15 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(30 32 32)"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(45 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(60 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(75 32 32)"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(90 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(105 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(120 32 32)"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(135 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(150 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(165 32 32)"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(180 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(195 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(210 32 32)"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(225 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(240 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(255 32 32)"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(270 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(285 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(300 32 32)"/><line x1="32" y1="3" x2="32" y2="7.5" transform="rotate(315 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(330 32 32)"/><line x1="32" y1="4.5" x2="32" y2="6.5" transform="rotate(345 32 32)"/><path class="pt" d="M32 0.5l2 4.5h-4zM32 63.5l2-4.5h-4zM0.5 32l4.5-2v4zM63.5 32l-4.5-2v4z"/></svg><svg class="sb-fan" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="4" width="7" height="11" rx="1.2" transform="rotate(-18 12.5 15)"/><rect x="9" y="4" width="7" height="11" rx="1.2" transform="rotate(18 12.5 15)"/><rect x="9" y="3" width="7" height="11" rx="1.2"/><circle cx="12.5" cy="8.5" r="1.3" class="dot"/></svg><span class="sb-label">牌陣</span>`;
+
 // 每個情境目前選的牌陣（預設是最推薦的那個）
 const sceneSpread = {};
 
@@ -789,11 +791,12 @@ function updateStart() {
   sceneSpread[key] = sp;
   $('#startBtn .t').textContent = '開始洗牌';
   $('#startBtn .s').textContent = `${SPREADS[sp].name} · ${SPREADS[sp].positions.length} 張`;
-  $('#spreadBtn').innerHTML = spreadDiagram(sp);
+
 }
 
 // 回到起始頁；今天還沒抽每日一牌就先停在每日一牌，抽過了就回到上次的情境
 function showHome(key) {
+  home.classList.remove('handoff');
   showScreen('home');
   const pick = !todayDaily() && !key ? 'daily' : key && key !== 'daily' ? key : store.get('starTarot.scene', 'general');
   orbit.select(pick);
@@ -935,9 +938,19 @@ function spreadDiagram(key) {
     `<rect x="${(ox + (b.x - minX) * k).toFixed(1)}" y="${(oy + (b.y - minY) * k).toFixed(1)}" width="${(b.w * k - 1.2).toFixed(1)}" height="${(b.h * k - 1.2).toFixed(1)}" rx="1"/>`).join('')}</svg>`;
 }
 
+// 轉場：起始頁中央那張牌就地變成整副牌堆，再飛到洗牌的位置
 function startReading(spreadKey) {
   state.spread = spreadKey;
   $('#question').blur();
+  const r = home.querySelector('.oc-face').getBoundingClientRect();
+  state.els.forEach((el) => {
+    el.style.transitionDuration = '0s';
+    el.style.transitionDelay = '0ms';
+    el.style.opacity = 1;
+    place(el, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, rot: 0 });
+  });
+  void $('#table').offsetWidth;
+  home.classList.add('handoff');
   showScreen('table');
   startShuffle();
 }
@@ -996,7 +1009,13 @@ async function startShuffle() {
 /* ================= 3D 牌環 ================= */
 const ring = (() => {
   const root = $('#pickRing'), spin = root.querySelector('.spin');
-  let cards = [], step = 0, R = 0, rot = 0, vel = 0, drag = null, raf = 0, intro = null, frontIdx = -1;
+  // 牌環的牌排得很密，正前方那張和左右兩張的深度只差一點點，Safari 有時會疊錯順序。
+  // 所以停下來時，在正前方另外放一張完整的牌背，蓋在牌環上面。
+  const focus = document.createElement('div');
+  focus.className = 'focus';
+  focus.innerHTML = '<div class="face back"></div>';
+  root.appendChild(focus);
+  let cards = [], step = 0, R = 0, rot = 0, vel = 0, drag = null, raf = 0, intro = null, frontIdx = -1, moving = false;
 
   function layout() {
     const g = ringGeom();
@@ -1007,6 +1026,7 @@ const ring = (() => {
     root.style.perspectiveOrigin = `50% ${g.cy - (g.top - 40)}px`;
     spin.style.top = `${g.cy - (g.top - 40)}px`;
     spin.style.setProperty('--R', `${R}px`);
+    Object.assign(focus.style, { top: `${g.cy - (g.top - 40)}px`, width: `${g.cw * 1.14}px`, height: `${g.ch * 1.14}px`, marginLeft: `${-g.cw * 0.57}px`, marginTop: `${-g.ch * 0.57}px` });
     cards.forEach((c, i) => {
       Object.assign(c.el.style, { width: `${g.cw}px`, height: `${g.ch}px`, marginLeft: `${-g.cw / 2}px`, marginTop: `${-g.ch / 2}px` });
       c.el.style.setProperty('--a', `${i * step}deg`);
@@ -1034,6 +1054,9 @@ const ring = (() => {
       cards[idx]?.el.classList.add('facing');
       frontIdx = idx;
     }
+    // 轉動中先看整個牌環；停下來後，正前方的牌才浮出來
+    const m = !!(intro || drag || Math.abs(vel) > 0.25 || Math.abs(rot - Math.round(rot / step) * step) > step * 0.3);
+    if (m !== moving) { moving = m; root.classList.toggle('moving', m); }
     raf = requestAnimationFrame(frame);
   }
 
@@ -1056,6 +1079,11 @@ const ring = (() => {
     drag = null;
     if (!d || d.moved > 6) return;
     root.releasePointerCapture(e.pointerId);
+    const f = focus.getBoundingClientRect();
+    if (!moving && cards[frontIdx] && e.clientX >= f.left && e.clientX <= f.right && e.clientY >= f.top && e.clientY <= f.bottom) {
+      pickFromRing(cards[frontIdx].k);
+      return;
+    }
     const hit = document.elementsFromPoint(e.clientX, e.clientY).find((x) => x.classList?.contains('rcard'));
     if (hit) pickFromRing(+hit.dataset.k);
   });
@@ -1068,6 +1096,8 @@ const ring = (() => {
   return {
     show(ks) {
       spin.innerHTML = '';
+      moving = true;
+      root.classList.add('moving');
       cards = ks.map((k) => {
         const el = document.createElement('div');
         el.className = 'rcard';
@@ -1096,7 +1126,10 @@ const ring = (() => {
       layout();
       rot = (rot / oldStep) * step;
     },
-    rectOf(k) { return cards.find((c) => c.k === k)?.el.getBoundingClientRect(); },
+    rectOf(k) {
+      if (!moving && cards[frontIdx]?.k === k) return focus.getBoundingClientRect();
+      return cards.find((c) => c.k === k)?.el.getBoundingClientRect();
+    },
     async hide() {
       if (root.hidden) return;
       root.classList.add('out');
@@ -1340,11 +1373,22 @@ async function resetReading(toLanding) {
   $('#actions').hidden = true;
   $('#revealBar').hidden = true;
   ring.hide();
+  closeModal();
+  sheet.hidden = true;
   state.picks.forEach((p) => live.detach(p.el.querySelector('.front')));
+  // 轉場：桌上的牌翻回背面、收攏成一疊，飛回起始頁中央那張牌的位置
+  const target = home.querySelector('.oc-face').getBoundingClientRect();
+  const picked = [...state.picks].sort((a, b) => a.slot - b.slot);
   state.els.forEach((el) => {
-    el.style.transitionDuration = '.5s';
-    el.style.opacity = 0;
     el.style.pointerEvents = 'none';
+    if (!el.classList.contains('placed')) { el.style.transitionDuration = '.3s'; el.style.opacity = 0; }
+  });
+  picked.forEach((p, i) => {
+    const el = p.el;
+    el.classList.remove('flipped', 'shine', 'active');
+    el.style.transitionDuration = '.75s';
+    el.style.transitionDelay = `${i * 40}ms`;
+    place(el, { x: target.left + target.width / 2, y: target.top + target.height / 2, w: target.width, h: target.height, rot: (i - (picked.length - 1) / 2) * 4 });
   });
   state.phase = 'idle';
   state.picks = [];
@@ -1354,9 +1398,18 @@ async function resetReading(toLanding) {
   renderSlots();
   updateHint();
   updateHeader();
-  await sleep(450);
+  if (picked.length) {
+    sound.whoosh();
+    await sleep(750 + picked.length * 40);
+  }
+  // 收回來的牌移到另一層慢慢淡出，同時把新的一副牌準備好
+  const ghosts = $('#ghosts');
+  picked.forEach((p) => ghosts.appendChild(p.el));
   buildStack();
   showHome(toLanding ? null : state.spread === 'one' ? 'daily' : state.topic);
+  void ghosts.offsetWidth;
+  picked.forEach((p) => { p.el.style.transitionDuration = '.5s'; p.el.style.transitionDelay = '0ms'; p.el.style.opacity = 0; });
+  setTimeout(() => picked.forEach((p) => p.el.remove()), 600);
 }
 
 /* ================= 全息效果 ================= */
@@ -1574,6 +1627,7 @@ function openSheet(reading = currentReading(), back = null) {
   const notes = overviewNotes(picks, reading.spread);
   const story = storyParagraphs(picks, reading.spread, sp);
   const focus = topicReading(picks, reading.spread, sp, reading.topic);
+  const sum = summaryReading(picks, reading.spread, sp, reading.topic);
   const posName = (p) => sp.positions[p.slot].name;
   const aspect = (field, title) => `
     <details ${(topic.field || 'love') === field ? 'open' : ''}><summary>${title}</summary>
@@ -1590,9 +1644,12 @@ function openSheet(reading = currentReading(), back = null) {
     <p class="meta"><span>${topic.zh}</span>${reading.t ? `<span>${fmtTime(reading.t)}</span>` : ''}</p>
     <div class="sheet-tools"><button class="with-icon" data-act="share"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 7.5L12 3.5l4 4"/><path d="M6.5 11H5v9.5h14V11h-1.5"/></svg>存成圖片</button>${reading.spread === 'one' && back !== 'calendar' ? '<button class="with-icon" data-act="calendar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>每日一牌日曆</button>' : ''}</div>
 
-    <h3>整體能量</h3>
-    <div class="elements">${Object.entries(counts).map(([k, v]) => `<span style="color:${ELEMENTS[k].color}">${ELEMENTS[k].zh} × ${v}</span>`).join('')}</div>
-    ${notes.map((n) => `<p class="note-line">✦ ${n}</p>`).join('')}
+    <section class="summary">
+      <p class="sum-k">Summary · 總結</p>
+      <div class="sum-cards">${picks.map((p) => `<img class="${p === sum.core ? 'core' : ''} ${p.reversed ? 'rev' : ''}" src="${thumb(p.card)}" alt="${p.card.zh}">`).join('')}</div>
+      <p class="sum-text">${sum.text}</p>
+      <p class="sum-advice"><span>給你的一句話</span>${sum.advice}</p>
+    </section>
 
     <h3>牌陣的故事</h3>
     ${story.map((t) => `<p class="story">${t}</p>`).join('')}
@@ -1601,6 +1658,10 @@ function openSheet(reading = currentReading(), back = null) {
     <h3>${topic.zh}上的解讀</h3>
     <p class="story">${focus.intro}</p>
     ${focus.items.map((it) => `<p class="note-line"><b>${it.label}</b>：${it.text}</p>`).join('')}` : ''}
+
+    <h3>整體能量</h3>
+    <div class="elements">${Object.entries(counts).map(([k, v]) => `<span style="color:${ELEMENTS[k].color}">${ELEMENTS[k].zh} × ${v}</span>`).join('')}</div>
+    ${notes.map((n) => `<p class="note-line">✦ ${n}</p>`).join('')}
 
     <h3>逐張解讀</h3>
     ${picks.map((p) => {

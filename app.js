@@ -503,13 +503,17 @@ function stackPos(i) {
 // 抽牌用的 3D 牌環在畫面下方；cy 是正前方那張牌的中心
 function ringGeom() {
   const cw = clamp(innerWidth * 0.16, 62, 104), ch = cw * CARD_RATIO;
-  const cy = innerHeight - ch / 2 - Math.max(30, innerHeight * 0.04);
+  const cy = innerHeight - ch * 0.62 - Math.max(34, innerHeight * 0.05);
   return { cw, ch, cy, top: cy - ch / 2 - 30 };
 }
 
 function spreadArea() {
   const top = headerBottom() + 18;
-  const bottom = state.phase === 'reading' || state.phase === 'revealing' ? innerHeight - 78 : ringGeom().top - 40;
+  // 下方要留給：牌環與提示（抽牌）、提示與「全部翻開」（翻牌）、結果按鈕（解讀）
+  const multi = SPREADS[state.spread].positions.length > 1;
+  const bottom = state.phase === 'reading' ? innerHeight - 78
+    : state.phase === 'revealing' ? innerHeight - (multi ? 150 : 104)
+    : ringGeom().top - 70;
   const side = innerWidth < 640 ? 8 : 16;
   return { x: side, y: top, w: innerWidth - side * 2, h: Math.max(120, bottom - top) };
 }
@@ -599,7 +603,8 @@ function updateHint() {
     hint.style.top = `${s.y + s.h / 2 + 24}px`;
   } else if (state.phase === 'revealing' && state.revealed < positions.length) {
     hint.innerHTML = positions.length > 1 ? '牌都到齊了<small>點擊牌，一張一張翻開</small>' : '準備好了嗎？<small>點擊牌翻開今天的指引</small>';
-    hint.style.top = `${innerHeight - 128}px`;
+    const a = spreadArea();
+    hint.style.top = `${a.y + a.h + 12}px`;
   } else {
     hint.style.opacity = 0;
   }

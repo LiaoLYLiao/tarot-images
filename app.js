@@ -4,6 +4,9 @@ const $ = (s) => document.querySelector(s);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const DEG = Math.PI / 180;
+// 版面寬高：用實際版面的大小，不用 innerWidth/innerHeight（iPhone 畫面被放大時，那兩個會變成放大後看得到的那一小塊）
+const VW = () => document.documentElement.clientWidth || innerWidth;
+const VH = () => document.documentElement.clientHeight || innerHeight;
 const CARD_RATIO = 1642 / 958;
 
 function rand() {
@@ -66,8 +69,8 @@ const SPRITES = {
 
 function fitCanvas(c) {
   const dpr = Math.min(devicePixelRatio || 1, 2);
-  c.width = innerWidth * dpr;
-  c.height = innerHeight * dpr;
+  c.width = VW() * dpr;
+  c.height = VH() * dpr;
   const ctx = c.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return ctx;
@@ -171,19 +174,19 @@ const sky = (() => {
   ];
 
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const swimY = () => innerHeight * (rand() < 0.5 ? 0.16 + rand() * 0.14 : 0.42 + rand() * 0.16);
+  const swimY = () => VH() * (rand() < 0.5 ? 0.16 + rand() * 0.14 : 0.42 + rand() * 0.16);
   let creature = null, lastKey = null, nextCreature = performance.now() + 3500, lastT = 0;
 
   function spawnCreature(t, key) {
     const pool = CREATURES.filter((c) => c.key !== lastKey);
     const def = CREATURES.find((c) => c.key === key) || (lastKey ? pool[Math.floor(rand() * pool.length)] : CREATURES[0]);
     lastKey = def.key;
-    const len = clamp(Math.min(innerWidth, innerHeight) * 0.5, 150, 340) * def.size;
+    const len = clamp(Math.min(VW(), VH()) * 0.5, 150, 340) * def.size;
     const dur = (def.secs[0] + rand() * (def.secs[1] - def.secs[0])) * 1000;
     const dir = rand() < 0.5 ? 1 : -1;
     creature = def.move === 'rise'
-      ? { def, len, dir, x: innerWidth * (0.15 + rand() * 0.7), y: innerHeight + len * 0.6, vx: dir * 0.004, vy: -(innerHeight + len * 1.3) / dur, ph: rand() * 6, trail: [] }
-      : { def, len, dir, x: dir > 0 ? -len * 0.7 : innerWidth + len * 0.7, y: swimY(), vx: (dir * (innerWidth + len * 1.4)) / dur, vy: 0, ph: rand() * 6, trail: [] };
+      ? { def, len, dir, x: VW() * (0.15 + rand() * 0.7), y: VH() + len * 0.6, vx: dir * 0.004, vy: -(VH() + len * 1.3) / dur, ph: rand() * 6, trail: [] }
+      : { def, len, dir, x: dir > 0 ? -len * 0.7 : VW() + len * 0.7, y: swimY(), vx: (dir * (VW() + len * 1.4)) / dur, vy: 0, ph: rand() * 6, trail: [] };
     nextCreature = t + 1e12;
   }
 
@@ -191,13 +194,13 @@ const sky = (() => {
     const c = creature, d = c.def;
     c.x += c.vx * dt;
     c.y += c.vy * dt;
-    const gone = d.move === 'rise' ? c.y < -c.len * 0.7 : (c.dir > 0 ? c.x > innerWidth + c.len * 0.7 : c.x < -c.len * 0.7);
+    const gone = d.move === 'rise' ? c.y < -c.len * 0.7 : (c.dir > 0 ? c.x > VW() + c.len * 0.7 : c.x < -c.len * 0.7);
     if (gone) {
       creature = null;
       nextCreature = t + 18000 + rand() * 17000;
       return;
     }
-    const edge = d.move === 'rise' ? Math.min(c.y, innerHeight - c.y) : Math.min(c.x, innerWidth - c.x);
+    const edge = d.move === 'rise' ? Math.min(c.y, VH() - c.y) : Math.min(c.x, VW() - c.x);
     const a = clamp((edge + c.len * 0.3) / (c.len * 0.8), 0, 1) * 0.85;
     const bob = Math.sin(t * (d.key === 'seahorse' ? 0.0016 : 0.0009) + c.ph) * (d.key === 'seahorse' ? 22 : 10);
     const flip = d.move === 'rise' ? 1 : c.dir;
@@ -273,19 +276,19 @@ const sky = (() => {
 
   function init() {
     ctx = fitCanvas(canvas);
-    const n = Math.round((innerWidth * innerHeight) / 2600);
+    const n = Math.round((VW() * VH()) / 2600);
     stars = Array.from({ length: n }, () => {
       const z = rand() ** 2;
       return {
-        x: rand() * innerWidth, y: rand() * innerHeight, z,
+        x: rand() * VW(), y: rand() * VH(), z,
         s: 2 + z * 7 + (rand() < 0.03 ? 10 : 0),
         ph: rand() * Math.PI * 2, sp: 0.4 + rand() * 1.6,
       };
     });
   }
   addEventListener('pointermove', (e) => {
-    mouse.tx = e.clientX / innerWidth - 0.5;
-    mouse.ty = e.clientY / innerHeight - 0.5;
+    mouse.tx = e.clientX / VW() - 0.5;
+    mouse.ty = e.clientY / VH() - 0.5;
   });
 
   function frame(t) {
@@ -293,7 +296,7 @@ const sky = (() => {
     lastT = t;
     mouse.x += (mouse.tx - mouse.x) * 0.04;
     mouse.y += (mouse.ty - mouse.y) * 0.04;
-    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ctx.clearRect(0, 0, VW(), VH());
     ctx.globalCompositeOperation = 'lighter';
     for (const s of stars) {
       const a = (0.25 + 0.75 * (0.5 + 0.5 * Math.sin(t * 0.001 * s.sp + s.ph))) * (0.35 + 0.65 * s.z);
@@ -303,7 +306,7 @@ const sky = (() => {
     }
     if (t > nextMeteor) {
       const ang = (20 + rand() * 25) * DEG;
-      meteors.push({ x: rand() * innerWidth * 0.8 + innerWidth * 0.2, y: rand() * innerHeight * 0.4, vx: -Math.cos(ang) * 9, vy: Math.sin(ang) * 9, life: 1 });
+      meteors.push({ x: rand() * VW() * 0.8 + VW() * 0.2, y: rand() * VH() * 0.4, vx: -Math.cos(ang) * 9, vy: Math.sin(ang) * 9, life: 1 });
       nextMeteor = t + 3500 + rand() * 6000;
     }
     meteors = meteors.filter((m) => m.life > 0);
@@ -398,7 +401,7 @@ const fx = (() => {
     const busy = parts.length || rings.length || circles.length || state.phase === 'shuffling';
     if (!busy && !dirty) { requestAnimationFrame(frame); return; }
     dirty = !!busy;
-    ctx.clearRect(0, 0, innerWidth, innerHeight);
+    ctx.clearRect(0, 0, VW(), VH());
     ctx.globalCompositeOperation = 'lighter';
     parts = parts.filter((p) => p.life > 0);
     for (const p of parts) {
@@ -514,15 +517,15 @@ const headerBottom = () => $('#top').getBoundingClientRect().bottom;
 
 // 洗牌時，牌堆在畫面中央
 function stackPos(i) {
-  const top = headerBottom() + 16, bottom = innerHeight * 0.86;
-  const h = Math.max(120, Math.min((bottom - top) * 0.62, 340, innerWidth * 0.46 * CARD_RATIO));
-  return { x: innerWidth / 2, y: (top + bottom) / 2 - i * 0.08, w: h / CARD_RATIO, h, rot: 0 };
+  const top = headerBottom() + 16, bottom = VH() * 0.86;
+  const h = Math.max(120, Math.min((bottom - top) * 0.62, 340, VW() * 0.46 * CARD_RATIO));
+  return { x: VW() / 2, y: (top + bottom) / 2 - i * 0.08, w: h / CARD_RATIO, h, rot: 0 };
 }
 
 // 抽牌用的 3D 牌環在畫面下方；cy 是正前方那張牌的中心
 function ringGeom() {
-  const cw = clamp(innerWidth * 0.16, 62, 104), ch = cw * CARD_RATIO;
-  const cy = innerHeight - ch * 0.62 - Math.max(34, innerHeight * 0.05);
+  const cw = clamp(VW() * 0.16, 62, 104), ch = cw * CARD_RATIO;
+  const cy = VH() - ch * 0.62 - Math.max(34, VH() * 0.05);
   return { cw, ch, cy, top: cy - ch / 2 - 30 };
 }
 
@@ -530,11 +533,11 @@ function spreadArea() {
   const top = headerBottom() + 18;
   // 下方要留給：牌環與提示（抽牌）、提示與「全部翻開」（翻牌）、結果按鈕（解讀）
   const multi = SPREADS[state.spread].positions.length > 1;
-  const bottom = state.phase === 'reading' ? innerHeight - 78
-    : state.phase === 'revealing' ? innerHeight - (multi ? 150 : 104)
+  const bottom = state.phase === 'reading' ? VH() - 78
+    : state.phase === 'revealing' ? VH() - (multi ? 150 : 104)
     : ringGeom().top - 70;
-  const side = innerWidth < 640 ? 8 : 16;
-  return { x: side, y: top, w: innerWidth - side * 2, h: Math.max(120, bottom - top) };
+  const side = VW() < 640 ? 8 : 16;
+  return { x: side, y: top, w: VW() - side * 2, h: Math.max(120, bottom - top) };
 }
 
 function fitPositions(pts, area) {
@@ -928,12 +931,12 @@ const quick = (() => {
 
   // 卡片定位：中央大牌，翻開後往上移，下面留給結論
   const bigRect = () => {
-    const w = Math.min(innerWidth * 0.46, 220, (innerHeight * 0.46) / CARD_RATIO);
-    return { x: innerWidth / 2, y: innerHeight * 0.44, w, h: w * CARD_RATIO, rot: 0 };
+    const w = Math.min(VW() * 0.46, 220, (VH() * 0.46) / CARD_RATIO);
+    return { x: VW() / 2, y: VH() * 0.44, w, h: w * CARD_RATIO, rot: 0 };
   };
   const smallRect = () => {
-    const h = Math.min(innerHeight * 0.36, 300), w = h / CARD_RATIO;
-    return { x: innerWidth / 2, y: headerBottom() + 14 + h / 2, w, h, rot: 0 };
+    const h = Math.min(VH() * 0.36, 300), w = h / CARD_RATIO;
+    return { x: VW() / 2, y: headerBottom() + 14 + h / 2, w, h, rot: 0 };
   };
   const placeRays = (p) => {
     const d = p.h * 1.9;
@@ -1257,7 +1260,7 @@ async function startShuffle() {
       const side = rand() < 0.5 ? -1 : 1;
       el.style.transitionDuration = '.28s';
       el.style.transitionDelay = `${i * 2}ms`;
-      place(el, { ...stackPos(i), x: s.x + side * Math.min(s.w * (0.55 + rand() * 0.15), innerWidth / 2 - s.w / 2 - 6), y: s.y - i * 0.25 + (rand() - 0.5) * 10, rot: side * (6 + rand() * 6) });
+      place(el, { ...stackPos(i), x: s.x + side * Math.min(s.w * (0.55 + rand() * 0.15), VW() / 2 - s.w / 2 - 6), y: s.y - i * 0.25 + (rand() - 0.5) * 10, rot: side * (6 + rand() * 6) });
     });
     await sleep(430);
     const table = $('#table');
@@ -1432,13 +1435,13 @@ async function dealRing() {
     el.style.transitionDelay = '0ms';
     el.style.opacity = 0;
     el.style.pointerEvents = 'none';
-    place(el, { x: innerWidth / 2, y: g.cy, w: g.cw, h: g.ch, rot: 0 });
+    place(el, { x: VW() / 2, y: g.cy, w: g.cw, h: g.ch, rot: 0 });
   });
   sound.whoosh();
   await sleep(350);
   state.els.forEach((el) => { if (!el.classList.contains('flying') && !el.classList.contains('placed')) el.style.display = 'none'; });
   const ms = ring.show(ks);
-  for (let i = 0; i < 14; i++) setTimeout(() => fx.sparkle(innerWidth * (0.15 + Math.random() * 0.7), g.cy + (Math.random() - 0.5) * g.ch, 2), i * 60);
+  for (let i = 0; i < 14; i++) setTimeout(() => fx.sparkle(VW() * (0.15 + Math.random() * 0.7), g.cy + (Math.random() - 0.5) * g.ch, 2), i * 60);
   await sleep(ms);
 }
 
@@ -1610,8 +1613,8 @@ function showRevealName(p, r) {
   tag.innerHTML = `${p.card.zh}<small>${p.reversed ? '逆位' : '正位'}</small>`;
   $('#labels').appendChild(tag);
   const w = tag.offsetWidth;
-  tag.style.left = `${clamp(r.left + r.width / 2 - w / 2, 8, innerWidth - w - 8)}px`;
-  tag.style.top = `${Math.min(r.bottom - 10, innerHeight - 60)}px`;
+  tag.style.left = `${clamp(r.left + r.width / 2 - w / 2, 8, VW() - w - 8)}px`;
+  tag.style.top = `${Math.min(r.bottom - 10, VH() - 60)}px`;
   setTimeout(() => tag.remove(), 2200);
 }
 
@@ -1716,10 +1719,10 @@ function drawLines(animate) {
   const covered = (x, y) => rects.some(([a, b, c, d]) => x > a && x < c && y > b && y < d);
 
   let html = `<defs>
-    <filter id="glow" filterUnits="userSpaceOnUse" x="0" y="0" width="${innerWidth}" height="${innerHeight}">
+    <filter id="glow" filterUnits="userSpaceOnUse" x="0" y="0" width="${VW()}" height="${VH()}">
       <feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
-    <linearGradient id="lineGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${innerWidth}" y2="${innerHeight}">
+    <linearGradient id="lineGrad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${VW()}" y2="${VH()}">
       <stop offset="0" stop-color="#fbe9b0"/><stop offset=".5" stop-color="#e8c877"/><stop offset="1" stop-color="#c9b8ff"/>
     </linearGradient></defs>`;
   sp.edges.forEach(([a, b], idx) => {
@@ -1765,7 +1768,7 @@ function showTooltip(idx, x, y) {
   tooltip.innerHTML = edgeHTML(idx);
   tooltip.hidden = false;
   const r = tooltip.getBoundingClientRect();
-  tooltip.style.left = `${clamp(x - r.width / 2, 12, innerWidth - r.width - 12)}px`;
+  tooltip.style.left = `${clamp(x - r.width / 2, 12, VW() - r.width - 12)}px`;
   tooltip.style.top = `${y - r.height - 16 < headerBottom() ? y + 18 : y - r.height - 16}px`;
 }
 function closeTooltip() { tooltip.hidden = true; }
@@ -2325,7 +2328,7 @@ const gallery = (() => {
   const ROWS = 3, PER = CARDS.length / ROWS;
 
   function build() {
-    const gw = clamp(Math.min(innerWidth * 0.085, (innerHeight - 190) / 3.9 / CARD_RATIO), 54, 112);
+    const gw = clamp(Math.min(VW() * 0.085, (VH() - 190) / 3.9 / CARD_RATIO), 54, 112);
     const gh = gw * CARD_RATIO;
     R = (PER * gw * 1.16) / (2 * Math.PI);
     if (!built) {

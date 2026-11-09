@@ -13,6 +13,8 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; }
+/* 不需要縮放：關掉點兩下放大，連點翻牌時畫面才不會被放大 */
+html { touch-action: manipulation; }
 body {
   background:
     radial-gradient(ellipse 60% 45% at 20% 25%, rgba(110, 60, 170, .28), transparent 70%),
@@ -609,7 +611,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 textarea.note {
   width: 100%; min-height: 96px; padding: 12px 14px; border-radius: 12px; resize: vertical;
   border: 1px solid var(--line); background: rgba(10, 8, 30, .6); color: var(--ink);
-  font: 14px/1.7 var(--serif); outline: none; user-select: text; -webkit-user-select: text;
+  font: 16px/1.7 var(--serif); outline: none; user-select: text; -webkit-user-select: text;
 }
 textarea.note:focus { border-color: var(--gold); }
 .hist {

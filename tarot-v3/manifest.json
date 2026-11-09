@@ -1,0 +1,499 @@
+{
+  "snapshot_date": "2026-11-07",
+  "fronts": [
+    {
+      "id": "MA00",
+      "file": "fronts/01_MA00_愚者.png",
+      "sha256": "293bae02a166609635b2828ea6f32afb771eb04079e288c9b76d1b08b46aed37",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA01",
+      "file": "fronts/02_MA01_魔術師.png",
+      "sha256": "17675fecbeb419b808474c4e79f9ffc44edaca332c9832566eeb940588165459",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA02",
+      "file": "fronts/03_MA02_女祭司.png",
+      "sha256": "baaf3f3a01c4869afcaca8a9eaf86c0d2c91f9d198b3cf198fdd66112fe781cc",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA03",
+      "file": "fronts/04_MA03_皇后.png",
+      "sha256": "69ce1a11ade09291e148a327d8a9ef615123e2111b568ac9a8cd2ec91aa3bf4e",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA04",
+      "file": "fronts/05_MA04_皇帝.png",
+      "sha256": "66c2cac850ee99be41ef6efb33564db6fda61bd8108d8eb977d3ce598fbb4e54",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA05",
+      "file": "fronts/06_MA05_教皇.png",
+      "sha256": "b7f868548083070d3ceb131a907c4d1ade81454ef47796b1a44539aca2991996",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA06",
+      "file": "fronts/07_MA06_戀人.png",
+      "sha256": "7fc1aae574a3cfaef4692687219b1f36fb73f2be05e388c686baf0d71754925a",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA07",
+      "file": "fronts/08_MA07_戰車.png",
+      "sha256": "e2e9bdeca6b4f80cc071bc3fe5d81ac6625a3ea4c6547782c7e1ca7a186eaa0b",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA08",
+      "file": "fronts/09_MA08_力量.png",
+      "sha256": "8d1c20d6286caa7b8e70009f85fb416c0983e70151034e099de81e1a5c37fef2",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA09",
+      "file": "fronts/10_MA09_隱者.png",
+      "sha256": "3fc01d5c88d24b74cc504e6ce370a44f831f94089e11cd180b266513e57adf25",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA10",
+      "file": "fronts/11_MA10_命運之輪.png",
+      "sha256": "c476e6c2840c1d9e05a938a5c76c2143805898053426ab992471f66d3f400793",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA11",
+      "file": "fronts/12_MA11_正義.png",
+      "sha256": "c9257830164a112f42430af2793ee921f9bd2037cbd0467c02d4beb6e1d705cf",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA12",
+      "file": "fronts/13_MA12_倒吊人.png",
+      "sha256": "ea3ab2d670034ad024a262ac4209b4d7eccfc8b7f7a4af8624612c61ff925246",
+      "review": "作者確認保留"
+    },
+    {
+      "id": "MA13",
+      "file": "fronts/14_MA13_死神.png",
+      "sha256": "f98e85f9716c0e3bcfdf5d8dcf0d4c2a6f4944941b12b8dc7eddf4e493b23fa7",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA14",
+      "file": "fronts/15_MA14_節制.png",
+      "sha256": "9c3475b933cc1d657935fb8a81533e03cf19625a4fbb44781733b43ab6ccea4b",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA15",
+      "file": "fronts/16_MA15_惡魔.png",
+      "sha256": "ab8d768f38a088efb75674ac60501e558732d00322ef78bb5ccea0e595940a99",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "MA16",
+      "file": "fronts/17_MA16_高塔.png",
+      "sha256": "cfe2d3b44b89ec836faa9bf5250816d8f9090cba7814f6f7675c334ec1c10043",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA17",
+      "file": "fronts/18_MA17_星星.png",
+      "sha256": "a5b7523f040f318f51dbee74cd525c079205a9411c2aebe3661b88e7aec8e1d9",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA18",
+      "file": "fronts/19_MA18_月亮.png",
+      "sha256": "aa177348028e6495aec1e5788309c7356c799800e685c15fbc4154e7b94df33d",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "MA19",
+      "file": "fronts/20_MA19_太陽.png",
+      "sha256": "80ebb0c5032c5f08beb1effc5db004fb3561950ea4b0a5d050e49da3fdd8a3fb",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "MA20",
+      "file": "fronts/21_MA20_審判.png",
+      "sha256": "46e0daf3ac0cc6b3a461cf7784d95f3efc4c721609257bb79544b54c43ad4bf8",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "MA21",
+      "file": "fronts/22_MA21_世界.png",
+      "sha256": "0a73804388d37b6367167ea65425be57f39dd0dee484ca56512f81ce13b80e01",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "WA01",
+      "file": "fronts/23_WA01_權杖一.png",
+      "sha256": "11c37f89a2e9ac144272db3b09125e0422f5d90dbfffd32fc0072f9a3499de94",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA02",
+      "file": "fronts/24_WA02_權杖二.png",
+      "sha256": "bd1b7417ec678892317645389e942d6f94ba3aab3f5a4944df567ef779816706",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA03",
+      "file": "fronts/25_WA03_權杖三.png",
+      "sha256": "97cadc4c4020e727c9b2e1dbfe9a6c6ddc321438b637dd730b536f71ca77ba3d",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA04",
+      "file": "fronts/26_WA04_權杖四.png",
+      "sha256": "a3999d48d4609446a6e3a4e256ff90aaf5a69c1e99eb2253c313c260a9970cdf",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "WA05",
+      "file": "fronts/27_WA05_權杖五.png",
+      "sha256": "bd7b3627656c4affabe0f2fc262c503545d8c5f61134415a235bea4e99f8f637",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "WA06",
+      "file": "fronts/28_WA06_權杖六.png",
+      "sha256": "ecf7d17c489dc23bbaac17f53026e83c46c700da4d06ab928458c29b0a0ee0d1",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA07",
+      "file": "fronts/29_WA07_權杖七.png",
+      "sha256": "9518ec669c85e9e55c09f0b029a3378dd628d67fdbe9cc135f751ed840334e14",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA08",
+      "file": "fronts/30_WA08_權杖八.png",
+      "sha256": "70b6846a4caa771a163902cd955fc674ee0d05a92f6117c0184973edb8bbe5a9",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA09",
+      "file": "fronts/31_WA09_權杖九.png",
+      "sha256": "41d444f47f61b4367c1f07941bf5519a52ffcd4937bd2791e9f2f127162ac809",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA10",
+      "file": "fronts/32_WA10_權杖十.png",
+      "sha256": "ba8cf74e4d4a69a4597e130d9df2822370b4cbd94b9b5145f18407295736ccb3",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "WA11",
+      "file": "fronts/33_WA11_權杖侍者.png",
+      "sha256": "8238b8dec19edd61e382dfea53c9e40867f36ebc6affc37b816ee3d9a924400c",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA12",
+      "file": "fronts/34_WA12_權杖騎士.png",
+      "sha256": "6751f824f6928d14f84d2570d8efe645ff0228b594a9cb7e8a098c74e9859a3b",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA13",
+      "file": "fronts/35_WA13_權杖皇后.png",
+      "sha256": "3136869df621bc7717a7b4f929bd6cbabd8455a5cb65232e7a1962a8c15141f2",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "WA14",
+      "file": "fronts/36_WA14_權杖國王.png",
+      "sha256": "eb9d9239e8e425ccc0f92f1140518b955db68dbdca65376c9731780a589ca095",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU01",
+      "file": "fronts/37_CU01_聖杯一.png",
+      "sha256": "4b032eaed8a580970f157ee4958666b585ab4b17b190a550c1d945cf0f1982d7",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "CU02",
+      "file": "fronts/38_CU02_聖杯二.png",
+      "sha256": "1464f8b5db87f15f4932485f0eb0d5a41282240a0fcb14fe982744967deab384",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU03",
+      "file": "fronts/39_CU03_聖杯三.png",
+      "sha256": "5715ae40b961af824c47bdd49674a4981fc34bab73e70ccacf23fe789bea84ff",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU04",
+      "file": "fronts/40_CU04_聖杯四.png",
+      "sha256": "07235f51a6b39d0525dac7695768c628b157873fb85b111affd8c97e7a7b58ed",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU05",
+      "file": "fronts/41_CU05_聖杯五.png",
+      "sha256": "08e1442819c617f3198262902019b9541c0f72eaf53ae7c91acaca844b7d456c",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU06",
+      "file": "fronts/42_CU06_聖杯六.png",
+      "sha256": "1e2d2f91975fa6b9704ab9ac1611192d534c6e3f3f2b06cf7887476998fd38fd",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU07",
+      "file": "fronts/43_CU07_聖杯七.png",
+      "sha256": "4e7f0ab899d80e0787b5bdcda2a73492457a63498811d82cb546bf64bbdcc0df",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU08",
+      "file": "fronts/44_CU08_聖杯八.png",
+      "sha256": "0eb256a2a33cf02aa2e39d75d8ac0679f2b85f06f8d4359161ab4d1e97637740",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU09",
+      "file": "fronts/45_CU09_聖杯九.png",
+      "sha256": "605ea50efcdbc73e1c5240854afc0edbdd20cc66f41a33563d84ea5ebd144cc3",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU10",
+      "file": "fronts/46_CU10_聖杯十.png",
+      "sha256": "c0fe07bd08590fc2dddfaa16676e80de0e506c931e9b29e3d5837b62d3a81db1",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "CU11",
+      "file": "fronts/47_CU11_聖杯侍者.png",
+      "sha256": "4fbd9361bbe71e52dc11cea05b8898cb9e03728da275d3bb156f6a867849cc41",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU12",
+      "file": "fronts/48_CU12_聖杯騎士.png",
+      "sha256": "2ccb7f18a0da760f129fb17ec22308ed613fa17067038799a75d97f0a042991c",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU13",
+      "file": "fronts/49_CU13_聖杯皇后.png",
+      "sha256": "911591d58aae93a445999d6cb04f0ff0ed8d52c91a2d6ad480a3b721692f5b9f",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "CU14",
+      "file": "fronts/50_CU14_聖杯國王.png",
+      "sha256": "e889c8c6e0fffe5ae0c97cb919e6ead8ae9b866bff5e56082640ec2d10adebbc",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW01",
+      "file": "fronts/51_SW01_寶劍一.png",
+      "sha256": "01c91a6296fbf430d5a404552387461cb7c530670ca2bce4ccea554ab10717b8",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW02",
+      "file": "fronts/52_SW02_寶劍二.png",
+      "sha256": "53c1bac51f7e219443cac623af160896f3e52fabd710fbac0415b0110d367537",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW03",
+      "file": "fronts/53_SW03_寶劍三.png",
+      "sha256": "93c96d4baf1e88791d09fce729acd162ec16e45d8b94decf193d62fd2b58ecf9",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW04",
+      "file": "fronts/54_SW04_寶劍四.png",
+      "sha256": "0ae1ef69562179953561f87f61865a2527d78600e13f24c4c5e00247bd1723c4",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW05",
+      "file": "fronts/55_SW05_寶劍五.png",
+      "sha256": "a334203064a53b59e5a3ed65623622740f89ed48d86463d90f75337e6dd657c9",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW06",
+      "file": "fronts/56_SW06_寶劍六.png",
+      "sha256": "a4f82053753f41a8e8bb8c98d64082d1eb55f5ef600bfb3f7ec96c033a25d1fc",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW07",
+      "file": "fronts/57_SW07_寶劍七.png",
+      "sha256": "3218b4ce620957f555596a142560e6ead64082e145b743bd3e03992f6f74299f",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW08",
+      "file": "fronts/58_SW08_寶劍八.png",
+      "sha256": "fd01057db5b69e9fa770f7c7c98825b978bb4ed5c2bc4fce89f4c9fa0cac65ab",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW09",
+      "file": "fronts/59_SW09_寶劍九.png",
+      "sha256": "09a7e6cda69f72be4310dfb689e7fca546f36454bc7eecea7e91c560b03c74ac",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW10",
+      "file": "fronts/60_SW10_寶劍十.png",
+      "sha256": "2b2cbb16128f89829d350c85dcb9a20d2cdc301314327ea83303d4d8040ad2d0",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW11",
+      "file": "fronts/61_SW11_寶劍侍者.png",
+      "sha256": "2341c43356c81c2d85e7dcb28707d8f97e148c260b8b7d087eb6b79b92447116",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW12",
+      "file": "fronts/62_SW12_寶劍騎士.png",
+      "sha256": "dd1559741465d034f5f9f7e3dc3d46e84ab5ebe5063627b380e152fb3ef8c6cc",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW13",
+      "file": "fronts/63_SW13_寶劍皇后.png",
+      "sha256": "c8cb9521f94526acfba21c2355d185d76c64b94c5609fd4fb1a69a535bb2b50c",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "SW14",
+      "file": "fronts/64_SW14_寶劍國王.png",
+      "sha256": "eb5fc7ac14ddfc685ffb5ce70c9c0bd9a00657a8e4b770f864ab073fba602b92",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE01",
+      "file": "fronts/65_PE01_錢幣一.png",
+      "sha256": "91ada338ec0ab5186900d6ad996314198872040f0d1ab082bca79df03d1e299d",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE02",
+      "file": "fronts/66_PE02_錢幣二.png",
+      "sha256": "b90f954f5bc5e96e961b87cf96c912e5d0e457fe8397fb4ac2af161ff2a4781b",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE03",
+      "file": "fronts/67_PE03_錢幣三.png",
+      "sha256": "5bf0a9a3397f7545f31f14d5ae871b0c277e4a3e3248f5b73f5f3cdcd5d9ba17",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE04",
+      "file": "fronts/68_PE04_錢幣四.png",
+      "sha256": "0a3087a21c66c961cd4b479623c44912be6387b82a2fb465e711719b7d25626e",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE05",
+      "file": "fronts/69_PE05_錢幣五.png",
+      "sha256": "53ced904d7a5760c11e04217dbda382fc9dabb2b870d305849a01fa56b7b0afc",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE06",
+      "file": "fronts/70_PE06_錢幣六.png",
+      "sha256": "010e5e2a2880ae4d790a70586431893e079f3a11d67b6f2a9f6473bca2dbb311",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE07",
+      "file": "fronts/71_PE07_錢幣七.png",
+      "sha256": "fd40a9cb5c859ae290bf4c1eb0528d4221de795f0f812b38a871006ceb4c2e27",
+      "review": "修訂後待複審"
+    },
+    {
+      "id": "PE08",
+      "file": "fronts/72_PE08_錢幣八.png",
+      "sha256": "217c3136f02d9d0fca83fcf8fc79df3bad0178d1bfc53c7e942b01b2247fcc97",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE09",
+      "file": "fronts/73_PE09_錢幣九.png",
+      "sha256": "3a97e58bd2efe8207d0ba2fd91235df78419d658df802405cc8d2dfc3e000f4f",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE10",
+      "file": "fronts/74_PE10_錢幣十.png",
+      "sha256": "31059566e976e3844d328631082bef9577d5bc2aa8b19955cd89e7b630f54111",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE11",
+      "file": "fronts/75_PE11_錢幣侍者.png",
+      "sha256": "ee112f9b3abe6b8e88a0fce99cd8704ea76f8ac3f788093066eca9a80b83eabc",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE12",
+      "file": "fronts/76_PE12_錢幣騎士.png",
+      "sha256": "476d2d625e9bbe4004bb9de9b1e2a363243255ff37741e1ad9319a9974e4b1be",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE13",
+      "file": "fronts/77_PE13_錢幣皇后.png",
+      "sha256": "6e0c177aa4e8c4e26df9906a523bd483df6ae5014053fd72ccafe1c440f9b0a5",
+      "review": "本輪未見明確缺陷"
+    },
+    {
+      "id": "PE14",
+      "file": "fronts/78_PE14_錢幣國王.png",
+      "sha256": "b9cd2bf3f6125c3466b778205bfd64cb6a0cf2c6ed96e7ac92649632f6a4e49e",
+      "review": "本輪未見明確缺陷"
+    }
+  ],
+  "backs": [
+    {
+      "file": "backs/鯊鯊塔羅_共用牌背_v001.png",
+      "sha256": "aeb1c46ff942467c990edf690f52074659d17387a74030566622c1dc2e82c0b9"
+    },
+    {
+      "file": "backs/鯊鯊塔羅_牌背_星月明款_v001.png",
+      "sha256": "282a353f8ab919fca883f5e3123fea8c485a86da043d8469081b5dbbec2b199e"
+    },
+    {
+      "file": "backs/鯊鯊塔羅_牌背_星月暗款_v001.png",
+      "sha256": "9927ee7eb4f4e58c04e4b86b8f0e5e41d916100e70a51ddd21523a01a294b4e5"
+    },
+    {
+      "file": "backs/鯊鯊塔羅_牌背_月蝕珍珠貝_v001.png",
+      "sha256": "ca72ef252c73b84dda7af95aa6b0efb7a2d72c3c6ce230d044a52b80b5e01d7b"
+    },
+    {
+      "file": "backs/鯊鯊塔羅_牌背_深海星圖藏書_v002.png",
+      "sha256": "3711e971008e9b1bf95895ea8788ef281a775152391aba3a6bb968eca132a694"
+    },
+    {
+      "file": "backs/鯊鯊塔羅_牌背_雙鯊羅盤深色款_v001.png",
+      "sha256": "bcd24fd4e1726cbae7d55924d07edbcb46bb3c88effa1f73786c4229bfcbd9fe"
+    }
+  ]
+}

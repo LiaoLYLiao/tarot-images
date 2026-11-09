@@ -101,8 +101,18 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hero .zh::after { transform: scaleX(-1); margin-left: -.7em; }
 
 /* 星座軌道：中央浮動的牌，六個情境沿著橢圓環繞 */
+/* 軌道外框：放軌道本身，加上固定在左右上角的每日一牌與隨手一抽 */
+.orbit-wrap { position: relative; flex: 1 1 auto !important; min-height: 170px; max-height: 520px; display: flex; flex-direction: column; }
+.orb.side { transform: none; top: 0; z-index: 4; }
+.orb.side-l { left: 0; }
+.orb.side-r { left: auto; right: 0; }
+.orb.side .orb-icon { width: 50px; height: 50px; }
+.orb.side.on .orb-name { opacity: 1; color: #f7ecd2; }
+.orb.side.on .orb-icon { transform: scale(1.08); }
+.orb.side.done:not(.on) .orb-icon { opacity: .7; }
+.orb-tag { font-size: 9.5px; font-weight: 300; letter-spacing: .14em; color: rgba(var(--orb-rgb, 232, 200, 119), .85); margin-top: -3px; }
 #orbit {
-  position: relative; flex: 1 1 auto !important; min-height: 170px; max-height: 520px;
+  position: relative; flex: 1 1 auto !important; min-height: 0;
   touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
 }
 #orbit:active { cursor: grabbing; }
@@ -699,7 +709,7 @@ textarea.note:focus { border-color: var(--gold); }
 }
 body.gallery-mode #slots, body.gallery-mode #table, body.gallery-mode #lines, body.gallery-mode #labels,
 body.gallery-mode #hint, body.gallery-mode #actions, body.gallery-mode #revealBar, body.gallery-mode #pickRing { visibility: hidden; }
-body.gallery-mode #spreadName, body.gallery-mode .screen { visibility: hidden; }
+body.gallery-mode #spreadName, body.gallery-mode .screen, body.gallery-mode #qLayer { visibility: hidden; }
 
 @media (max-width: 640px) {
   .brand .en { font-size: 18px; }
@@ -755,7 +765,7 @@ body.gallery-mode #spreadName, body.gallery-mode .screen { visibility: hidden; }
 .q-stage { flex: 1 1 auto !important; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; transition: opacity .5s, transform .6s; }
 .q-hint { margin: 0; font-size: 12px; font-weight: 300; letter-spacing: .2em; color: rgba(225, 218, 240, .6); }
 #quick.pulled .q-stage { opacity: 0; transform: translateY(40px); pointer-events: none; }
-#quick.done .q-head { opacity: 0; }
+#quick.pulled .q-head { opacity: 0; }
 
 /* 卡夾：後板、露出的牌、最上面那張可以拉的牌、前面的蓋子 */
 .case { position: relative; width: min(56vw, 230px, 32vh); aspect-ratio: .8; touch-action: none; cursor: grab; clip-path: inset(-80% -20% 0 -20%); }
@@ -814,4 +824,81 @@ body.gallery-mode #spreadName, body.gallery-mode .screen { visibility: hidden; }
 @media (max-height: 700px) {
   .q-verdict { font-size: 26px; }
   .q-advice { display: none; }
+}
+
+/* ---------- 隨手一抽：更華麗的卡夾與儀式 ---------- */
+.case-wrap { position: relative; display: grid; place-items: center; }
+.case-wrap > * { grid-area: 1 / 1; }
+.q-circle {
+  width: min(118vw, 470px, 64vh); aspect-ratio: 1; pointer-events: none; opacity: .45;
+  fill: none; stroke: rgba(110, 225, 210, .55); stroke-width: .8;
+  animation: spinSlow 60s linear infinite; transition: opacity 1.2s;
+}
+.q-circle .thin { stroke-opacity: .5; stroke-dasharray: 2 3; }
+.q-circle circle:not(.thin) { stroke: rgba(232, 200, 119, .6); }
+.q-circle polygon { stroke: rgba(232, 200, 119, .45); }
+#quick.opened .q-circle { opacity: .85; }
+
+.case-light {
+  position: absolute; z-index: 1; left: 6%; right: 6%; top: -78%; height: 92%; pointer-events: none;
+  background: linear-gradient(to top, rgba(255, 244, 210, .75), rgba(110, 225, 210, .25) 45%, transparent);
+  clip-path: polygon(30% 100%, 70% 100%, 100% 0, 0 0);
+  opacity: 0; transition: opacity 1.2s .3s;
+}
+#quick.opened .case-light { opacity: 1; animation: beam 2.6s ease-in-out 1.5s infinite; }
+@keyframes beam { 50% { opacity: .65; } }
+
+.case-lid {
+  position: absolute; z-index: 4; left: -3%; right: -3%; top: -9%; height: 52%;
+  border-radius: 14px 14px 6px 6px; border: 1px solid rgba(232, 200, 119, .75);
+  background: radial-gradient(ellipse at 50% 100%, rgba(110, 225, 210, .18), transparent 60%), linear-gradient(180deg, #2a2066, #17123f);
+  box-shadow: inset 0 0 0 5px rgba(13, 11, 40, .85), inset 0 0 0 6px rgba(232, 200, 119, .35), 0 8px 18px rgba(0, 0, 0, .45);
+  transform-origin: 50% 0; transition: transform 1s cubic-bezier(.3, .8, .25, 1), opacity .8s .2s;
+  display: grid; place-items: center;
+}
+.lid-gem { width: 16px; height: 16px; transform: rotate(45deg); border: 1px solid #f3d68a; background: radial-gradient(circle at 35% 35%, #c8fff6, #36b3a4 60%, #12524c); box-shadow: 0 0 14px rgba(110, 225, 210, .8); }
+#quick.opened .case-lid { transform: perspective(500px) rotateX(-115deg) translateY(-6px); opacity: 0; pointer-events: none; }
+.case .peek { transition: transform .5s cubic-bezier(.2, .9, .3, 1.2), opacity .2s; transform: translateY(26%); }
+#quick.opened .case .peek { transform: none; transition-delay: .5s; }
+
+.cf-c { position: absolute; width: 18px; height: 18px; border-color: #e3c27a; border-style: solid; border-width: 0; }
+.cf-c::after { content: ''; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #7fe8d9; box-shadow: 0 0 8px rgba(110, 225, 210, .9); }
+.cf-c.tl { top: 10px; left: 10px; border-top-width: 1.5px; border-left-width: 1.5px; border-top-left-radius: 6px; }
+.cf-c.tr { top: 10px; right: 10px; border-top-width: 1.5px; border-right-width: 1.5px; border-top-right-radius: 6px; }
+.cf-c.bl { bottom: 10px; left: 10px; border-bottom-width: 1.5px; border-left-width: 1.5px; border-bottom-left-radius: 6px; }
+.cf-c.br { bottom: 10px; right: 10px; border-bottom-width: 1.5px; border-right-width: 1.5px; border-bottom-right-radius: 6px; }
+.cf-c.tl::after { top: -3px; left: -3px; } .cf-c.tr::after { top: -3px; right: -3px; }
+.cf-c.bl::after { bottom: -3px; left: -3px; } .cf-c.br::after { bottom: -3px; right: -3px; }
+
+/* 儀式：暗場與牌後的光芒 */
+.q-dim {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .8s;
+  background: radial-gradient(circle at 50% 44%, transparent 18%, rgba(2, 1, 10, .82) 70%);
+}
+.q-dim.on { opacity: 1; }
+.q-rays {
+  position: absolute; border-radius: 50%; pointer-events: none; opacity: 0; transform: scale(.2) rotate(0deg);
+  transition: opacity 1s, transform 1s cubic-bezier(.2, .9, .3, 1);
+  background: repeating-conic-gradient(from 0deg, rgba(var(--qc, 255, 226, 150), 0) 0deg 9deg, rgba(var(--qc, 255, 226, 150), .5) 11deg 13deg, rgba(var(--qc, 255, 226, 150), 0) 15deg 22.5deg);
+  -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 70%); mask-image: radial-gradient(circle, #000 18%, transparent 70%);
+}
+.q-rays.on { opacity: 1; transform: scale(1); animation: raysSpin 26s linear infinite; }
+@keyframes raysSpin { from { rotate: 0deg; } to { rotate: 360deg; } }
+
+/* 結論一個字一個字浮現 */
+.glyph { display: inline-block; opacity: 0; animation: glyphIn .7s cubic-bezier(.2, .8, .2, 1) forwards; }
+@keyframes glyphIn {
+  from { opacity: 0; transform: translateY(10px) scale(1.5); text-shadow: 0 0 30px rgba(var(--v), 1); }
+  to { opacity: 1; transform: none; }
+}
+.q-result .q-line, .q-result .q-card, .q-result .q-advice, .q-result .q-actions { animation: rise2 .7s both; }
+.q-result .q-line { animation-delay: .7s; }
+.q-result .q-card { animation-delay: .9s; }
+.q-result .q-advice { animation-delay: 1.05s; }
+.q-result .q-actions { animation-delay: 1.2s; }
+.orbit-wrap.special #orbit { opacity: .55; transition: opacity .4s; }
+#orbit { transition: opacity .4s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .q-circle, .q-rays.on, #quick.opened .case-light { animation: none; }
 }

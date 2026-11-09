@@ -719,14 +719,24 @@ const orbit = (() => {
   const root = $('#orbit'), card = root.querySelector('.orbit-card');
   let orbs = [], keys = [], stepA = 1, base = Math.PI / 2, target = base, drag = null, raf = 0, spinTimer = 0;
 
+  // 軌道上只有五個情境；每日一牌與隨手一抽固定在左右上角，不進軌道
+  const sides = [...document.querySelectorAll('.orb.side')];
   function refresh() {
-    const all = [...root.querySelectorAll('.orb')];
-    const showDaily = !todayDaily();
-    all.forEach((o) => (o.hidden = o.dataset.scene === 'daily' && !showDaily));
-    orbs = all.filter((o) => !o.hidden);
+    orbs = [...root.querySelectorAll('.orb')];
     keys = orbs.map((o) => o.dataset.scene);
     stepA = (Math.PI * 2) / orbs.length;
+    const done = !!todayDaily();
+    const daily = sides.find((b) => b.dataset.scene === 'daily');
+    daily.classList.toggle('nudge', !done);
+    daily.classList.toggle('done', done);
+    daily.querySelector('.orb-tag').textContent = done ? '今日已抽' : '今天還沒抽';
   }
+  function selectSide(key) {
+    orbs.forEach((o) => o.classList.remove('on'));
+    sides.forEach((b) => b.classList.toggle('on', b.dataset.scene === key));
+    selectScene(key);
+  }
+  sides.forEach((b) => b.addEventListener('click', () => { refresh(); selectSide(b.dataset.scene); }));
 
   let lastW = 0;
   function frame() {
@@ -753,6 +763,7 @@ const orbit = (() => {
     while (t - base < -Math.PI) t += Math.PI * 2;
     target = t;
     kick();
+    sides.forEach((b) => b.classList.remove('on'));
     orbs.forEach((o, k) => o.classList.toggle('on', k === sel));
     // 連續快速切換時，等停下來再轉中央的牌、換背景色
     clearTimeout(spinTimer);
@@ -795,7 +806,7 @@ const orbit = (() => {
   });
 
   return {
-    select(key) { refresh(); select(Math.max(keys.indexOf(key), 0)); },
+    select(key) { refresh(); if (isSpecial(key)) selectSide(key); else select(Math.max(keys.indexOf(key), 0)); },
     start() { lastW = 0; if (!raf) raf = requestAnimationFrame(frame); },
     stop() { cancelAnimationFrame(raf); raf = 0; },
     kick,
@@ -817,6 +828,7 @@ function selectScene(key) {
   setAura(key);
   const special = isSpecial(key);
   home.classList.toggle('daily', special);
+  $('.orbit-wrap').classList.toggle('special', special);
   if (special) home.querySelector('.daily-note').textContent = info.note;
   else {
     setTopic(key);
@@ -846,9 +858,10 @@ function updateStart() {
 
 // 回到起始頁；今天還沒抽每日一牌就先停在每日一牌，抽過了就回到上次的情境
 function showHome(key) {
+  if (state.screen === 'quick') quick.reset();
   home.classList.remove('handoff');
   showScreen('home');
-  const pick = !todayDaily() && !key ? 'daily' : key && key !== 'daily' ? key : store.get('starTarot.scene', 'general');
+  const pick = !todayDaily() && !key ? 'daily' : key && key !== 'daily' ? key : store.get('starTarot.scene', 'love');
   orbit.select(pick);
   wheel.close(true);
 }
@@ -869,25 +882,48 @@ $('#startBtn').addEventListener('click', () => {
 });
 
 /* ================= 隨手一抽 ================= */
-// 從卡夾往上拉出一張牌（或輕點卡夾），牌飛到中央翻開，直接告訴你要不要做
+// 卡夾打開、一道光從裡面射出；把牌往上拉出來（或輕點卡夾），
+// 牌飛到中央旋轉、蓄力、翻開，直接告訴你要不要做
 const quick = (() => {
   const root = $('#quick'), box = root.querySelector('.case'), peek = root.querySelector('.peek');
   const result = root.querySelector('.q-result'), layer = $('#qLayer');
-  let drag = null, busy = false, cur = null, el = null;
+  const dim = layer.querySelector('.q-dim'), rays = layer.querySelector('.q-rays');
+  let drag = null, busy = false, ready = false, cur = null, el = null, ambient = 0, openTimer = 0;
 
   function open() {
     reset();
     setAura('quick');
     showScreen('quick');
+    // 卡夾的蓋子打開，光從裡面射出來
+    openTimer = setTimeout(() => {
+      root.classList.add('opened');
+      sound.whoosh();
+      setTimeout(() => { ready = true; }, 700);
+    }, 800);
+    clearInterval(ambient);
+    ambient = setInterval(() => {
+      if (state.screen !== 'quick' || busy) return;
+      const r = box.getBoundingClientRect();
+      fx.sparkle(r.left + r.width * (0.1 + rand() * 0.8), r.top - r.height * (0.1 + rand() * 0.5), 1);
+    }, 180);
   }
 
   function reset() {
     busy = false;
+    ready = false;
     cur = null;
+    clearTimeout(openTimer);
     if (el) { live.detach(el.querySelector('.front')); el.remove(); el = null; }
-    root.classList.remove('pulled', 'done');
+    root.classList.remove('pulled', 'done', 'opened');
     result.hidden = true;
     peek.style.transform = '';
+    dim.classList.remove('on');
+    rays.classList.remove('on');
+  }
+
+  function leave() {
+    clearInterval(ambient);
+    reset();
   }
 
   // 卡片定位：中央大牌，翻開後往上移，下面留給結論
@@ -899,57 +935,95 @@ const quick = (() => {
     const h = Math.min(innerHeight * 0.36, 300), w = h / CARD_RATIO;
     return { x: innerWidth / 2, y: headerBottom() + 14 + h / 2, w, h, rot: 0 };
   };
+  const placeRays = (p) => {
+    const d = p.h * 1.9;
+    Object.assign(rays.style, { width: `${d}px`, height: `${d}px`, left: `${p.x - d / 2}px`, top: `${p.y - d / 2}px` });
+  };
 
   async function pull() {
-    if (busy) return;
+    if (busy || !ready) return;
     busy = true;
     sound.unlock();
     const card = CARDS[Math.floor(rand() * CARDS.length)];
     const reversed = rand() < 0.35;
     cur = { card, reversed };
-    // 1. 牌從卡夾裡抽出來
+    const kind = KIND_FX[kindOf(card)];
+    layer.style.setProperty('--qc', kind.color);
+
+    // 1. 牌從卡夾裡抽出來，拖著金色光尾
     const r = peek.getBoundingClientRect();
     el = makeCard();
     el.querySelector('img').src = thumb(card);
     el.classList.toggle('reversed', reversed);
     layer.appendChild(el);
     el.style.transitionDuration = '0s';
-    place(el, { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, rot: 0 });
+    const start = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, rot: 0 };
+    place(el, start);
     root.classList.add('pulled');
     sound.whoosh();
-    void el.offsetWidth;
-    // 2. 往上滑出，再落到畫面中央
+    if (navigator.vibrate) navigator.vibrate(10);
     const big = bigRect();
-    el.style.transitionDuration = '0s';
-    const up = { ...big, y: Math.min(r.top - big.h * 0.25, big.y - 40), rot: -6 };
     const kf = (p) => ({ transform: cardTransform(p), width: `${p.w}px`, height: `${p.h}px` });
-    const start = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, rot: 0 };
-    await el.animate([kf(start), { ...kf({ ...start, y: start.y - r.height * 0.9 }), offset: 0.35 }, { ...kf(up), offset: 0.7 }, kf(big)],
-      { duration: 1100, easing: 'cubic-bezier(.45,.05,.25,1)' }).finished.catch(() => {});
+    const up = { ...big, y: Math.min(r.top - big.h * 0.25, big.y - 40), rot: -8 };
+    const fly = el.animate([kf(start), { ...kf({ ...start, y: start.y - r.height * 0.9 }), offset: 0.35 }, { ...kf(up), offset: 0.7 }, kf(big)],
+      { duration: 1100, easing: 'cubic-bezier(.45,.05,.25,1)' });
+    const t0 = performance.now();
+    (function trail() {
+      const b = el?.getBoundingClientRect();
+      if (!b) return;
+      fx.sparkle(b.left + b.width / 2, b.top + b.height * 0.8, 3);
+      if (performance.now() - t0 < 1050) requestAnimationFrame(trail);
+    })();
+    await fly.finished.catch(() => {});
     place(el, big);
-    await Promise.race([el.querySelector('img').decode().catch(() => {}), sleep(1500)]);
-    // 3. 蓄力：魔法陣、光芒
-    const kind = KIND_FX[kindOf(card)];
+    placeRays(big);
+
+    // 2. 牌在中央旋轉兩圈，周圍一圈光點環繞
+    dim.classList.add('on');
+    const spin = el.querySelector('.tilt').animate([{ transform: 'rotateY(0deg) scale(1)' }, { transform: 'rotateY(360deg) scale(1.06)', offset: 0.5 }, { transform: 'rotateY(720deg) scale(1)' }],
+      { duration: 1500, easing: 'cubic-bezier(.35,0,.2,1)' });
+    const s0 = performance.now();
+    (function orbitSparks() {
+      const k = (performance.now() - s0) / 1500;
+      for (let i = 0; i < 3; i++) {
+        const a = k * Math.PI * 4 + (i * Math.PI * 2) / 3;
+        fx.sparkle(big.x + Math.cos(a) * big.w * 0.95, big.y + Math.sin(a) * big.h * 0.6, 1);
+      }
+      if (k < 1) requestAnimationFrame(orbitSparks);
+    })();
+    sound.riffle();
+    await Promise.all([spin.finished.catch(() => {}), Promise.race([el.querySelector('img').decode().catch(() => {}), sleep(1500)])]);
+
+    // 3. 蓄力：光芒展開、三層魔法陣、牌開始震動
+    rays.classList.add('on');
     el.classList.add('charging');
-    fx.magic(big.x, big.y, big.h * 0.62, kind.color);
-    setTimeout(() => fx.magic(big.x, big.y, big.h * 0.85, kind.color), 260);
+    fx.magic(big.x, big.y, big.h * 0.6, kind.color);
+    setTimeout(() => fx.magic(big.x, big.y, big.h * 0.82, kind.color), 220);
+    setTimeout(() => fx.magic(big.x, big.y, big.h * 1.05, kind.color), 440);
     sound.charge();
-    await sleep(700);
-    // 4. 翻牌與揭曉
+    await sleep(900);
+
+    // 4. 閃光、衝擊波、翻牌
     el.classList.remove('charging');
     el.classList.add('flipping', 'flipped');
-    if (navigator.vibrate) navigator.vibrate([10, 40, 22]);
-    await sleep(380);
-    fx.burst(big.x, big.y, 120, 9, kind.burst);
+    if (navigator.vibrate) navigator.vibrate([12, 40, 30]);
+    await sleep(360);
     flash(kind.color);
+    fx.burst(big.x, big.y, 140, 10, kind.burst);
+    setTimeout(() => fx.burst(big.x, big.y, 60, 5, ['gold', 'star']), 160);
     sound.chime(3);
-    await sleep(550);
+    await sleep(600);
     el.classList.remove('flipping');
     el.classList.add('shine');
     live.attach(el.querySelector('.front'), card);
-    // 5. 牌往上讓位，下面出現結論
-    el.style.transitionDuration = '.7s';
-    place(el, smallRect());
+
+    // 5. 牌往上讓位（光芒跟著走），結論一個字一個字浮現
+    const sr = smallRect();
+    el.style.transitionDuration = '.8s';
+    rays.style.transition = 'left .8s cubic-bezier(.2,.8,.2,1), top .8s cubic-bezier(.2,.8,.2,1), width .8s, height .8s, opacity 1s, transform 1s';
+    place(el, sr);
+    placeRays(sr);
+    dim.classList.remove('on');
     showResult();
   }
 
@@ -959,7 +1033,7 @@ const quick = (() => {
     const p = { card, reversed };
     result.className = `q-result v-${v.key}`;
     result.querySelector('.q-en').textContent = v.en;
-    result.querySelector('.q-verdict').textContent = v.zh;
+    result.querySelector('.q-verdict').innerHTML = [...v.zh].map((ch, i) => `<span class="glyph" style="animation-delay:${0.25 + i * 0.16}s">${ch}</span>`).join('');
     result.querySelector('.q-line').textContent = v.line;
     result.querySelector('.q-card').innerHTML = `${card.zh}<span>${orientOf(p)} · ${kwOf(p)}</span>`;
     result.querySelector('.q-advice').textContent = card.advice;
@@ -971,7 +1045,7 @@ const quick = (() => {
 
   // 往上拉卡夾裡的牌：拉超過一段距離就抽出；輕點也可以
   box.addEventListener('pointerdown', (e) => {
-    if (busy) return;
+    if (busy || !ready) return;
     drag = { y: e.clientY, dy: 0 };
     box.setPointerCapture(e.pointerId);
   });
@@ -990,12 +1064,21 @@ const quick = (() => {
   });
   root.addEventListener('click', (e) => {
     const act = e.target.closest('[data-q]')?.dataset.q;
-    if (act === 'again') { reset(); sound.riffle(); }
+    if (act === 'again') { reset(); sound.riffle(); setTimeout(() => { root.classList.add('opened'); ready = true; }, 250); }
     else if (act === 'detail' && cur) openModal(cur, true);
-    else if (act === 'home' || e.target.closest('.q-back')) { reset(); showHome('quick'); }
+    else if (act === 'home' || e.target.closest('.q-back')) { leave(); showHome('quick'); }
   });
 
-  return { open, reset, relayout() { if (el && root.classList.contains('done')) { place(el, smallRect()); showResult(); } } };
+  return {
+    open, reset: leave,
+    relayout() {
+      if (!el || !root.classList.contains('done')) return;
+      const sr = smallRect();
+      place(el, sr);
+      placeRays(sr);
+      result.style.top = `${sr.y + sr.h / 2 + 18}px`;
+    },
+  };
 })();
 
 /* ================= 牌陣輪盤 ================= */

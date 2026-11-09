@@ -658,7 +658,12 @@ function buildStack() {
     el.addEventListener('click', onCardClick);
     return el;
   });
-  requestAnimationFrame(() => state.els.forEach((el) => (el.style.transitionDuration = '')));
+}
+
+// 78 張 3D 牌很吃手機的繪圖記憶體，所以只在占卜時才建立，回到起始頁就清掉
+function clearStack() {
+  $('#table').innerHTML = '';
+  state.els = [];
 }
 
 function onCardClick(e) {
@@ -686,11 +691,13 @@ const SCENES = {
 const AURA = { daily: '232,200,119', quick: '90,210,200', general: '120,90,220', love: '255,110,170', career: '240,180,80', study: '80,180,255', self: '160,120,255' };
 const isSpecial = (key) => key === 'daily' || key === 'quick';
 
+let auraTimer = 0;
 function setAura(key) {
   const rgb = AURA[key] || AURA.general;
   const aura = $('#aura');
   aura.style.opacity = 0;
-  setTimeout(() => { aura.style.setProperty('--aura', rgb); aura.style.opacity = 1; }, 250);
+  clearTimeout(auraTimer);
+  auraTimer = setTimeout(() => { aura.style.setProperty('--aura', rgb); aura.style.opacity = 1; }, 250);
   home.style.setProperty('--accent-rgb', rgb);
   $('#wheel').style.setProperty('--accent-rgb', rgb);
 }
@@ -706,7 +713,7 @@ function showScreen(name) {
 // 今天已經抽過每日一牌時，每日一牌就從軌道上收起來。
 const orbit = (() => {
   const root = $('#orbit'), card = root.querySelector('.orbit-card');
-  let orbs = [], keys = [], stepA = 1, base = Math.PI / 2, target = base, drag = null, raf = 0;
+  let orbs = [], keys = [], stepA = 1, base = Math.PI / 2, target = base, drag = null, raf = 0, spinTimer = 0;
 
   function refresh() {
     const all = [...root.querySelectorAll('.orb')];
@@ -737,9 +744,13 @@ const orbit = (() => {
     while (t - base < -Math.PI) t += Math.PI * 2;
     target = t;
     orbs.forEach((o, k) => o.classList.toggle('on', k === sel));
-    card.classList.remove('spin');
-    void card.offsetWidth;
-    card.classList.add('spin');
+    // 連續快速切換時，等停下來再轉中央的牌、換背景色
+    clearTimeout(spinTimer);
+    spinTimer = setTimeout(() => {
+      card.classList.remove('spin');
+      void card.offsetWidth;
+      card.classList.add('spin');
+    }, 120);
     selectScene(keys[sel]);
   }
 
@@ -1105,6 +1116,7 @@ function spreadDiagram(key) {
 function startReading(spreadKey) {
   state.spread = spreadKey;
   $('#question').blur();
+  buildStack();
   const r = home.querySelector('.oc-face').getBoundingClientRect();
   state.els.forEach((el) => {
     el.style.transitionDuration = '0s';
@@ -1329,6 +1341,7 @@ async function dealRing() {
   });
   sound.whoosh();
   await sleep(350);
+  state.els.forEach((el) => { if (!el.classList.contains('flying') && !el.classList.contains('placed')) el.style.display = 'none'; });
   const ms = ring.show(ks);
   for (let i = 0; i < 14; i++) setTimeout(() => fx.sparkle(innerWidth * (0.15 + Math.random() * 0.7), g.cy + (Math.random() - 0.5) * g.ch, 2), i * 60);
   await sleep(ms);
@@ -1342,6 +1355,7 @@ function pickFromRing(k) {
   const el = state.els.find((x) => +x.dataset.k === k);
   const r = ring.rectOf(k);
   if (!el || !r) return;
+  el.style.display = '';
   el.style.transitionDuration = '0s';
   el.style.opacity = 1;
   el.style.pointerEvents = '';
@@ -1569,7 +1583,7 @@ async function resetReading(toLanding) {
   // 收回來的牌移到另一層慢慢淡出，同時把新的一副牌準備好
   const ghosts = $('#ghosts');
   picked.forEach((p) => ghosts.appendChild(p.el));
-  buildStack();
+  clearStack();
   showHome(toLanding ? null : state.spread === 'one' ? 'daily' : state.topic);
   void ghosts.offsetWidth;
   picked.forEach((p) => { p.el.style.transitionDuration = '.5s'; p.el.style.transitionDelay = '0ms'; p.el.style.opacity = 0; });
@@ -2346,6 +2360,5 @@ addEventListener('resize', () => {
   }, 150);
 });
 
-buildStack();
 renderSlots();
 showHome();

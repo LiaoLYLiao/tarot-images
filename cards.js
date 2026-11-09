@@ -148,7 +148,8 @@ const CARDS = [
     }))),
 ].map((c) => {
   const [upText, revText, love, work, advice] = MEANINGS[c.file];
-  return { ...c, upText, revText, love, work, advice, self: SELF_GROWTH[c.file] };
+  const [loveRev, workRev, selfRev] = REVERSED_ASPECTS[c.file];
+  return { ...c, upText, revText, love, work, advice, self: SELF_GROWTH[c.file], loveRev, workRev, selfRev };
 });
 
 // 小牌的數字能量，順序同 RANKS
@@ -316,6 +317,14 @@ const SPREADS = {
     ],
     edges: [[0, 1], [1, 2]],
   },
+};
+
+// 隨手一抽也當成一種牌陣存進紀錄（不會出現在輪盤裡）
+SPREADS.quick = {
+  name: '隨手一抽',
+  blurb: '不用情境和牌陣，抽一張牌回答要不要做',
+  positions: [{ name: '答案', desc: '這件事要不要做', x: 0, y: 0 }],
+  edges: [],
 };
 
 // 每個情境適用的牌陣（輪盤裡只會列出這些），第一個最推薦

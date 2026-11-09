@@ -24,4 +24,45 @@ tarot-images use to create a html platform for tarot to do the magic. Only for p
 - **每日一牌日曆**：每日一牌一天只能抽一張，抽過的牌排成月曆，顯示抽牌天數、連續天數與本月的元素、花色、逆位統計（在 📖 裡切換）
 - **存成圖片**：把牌陣與重點解讀合成一張 1080×1920 的直式圖片，可直接分享或下載
 
-檔案：`index.html`、`style.css`、`app.js`（互動與動畫）、`cards.js`（牌與牌陣資料）、`meanings.js`（詳細牌義）、`reading.js`（解讀文字組合），`cards/` 是網頁用的牌卡圖片（由 `tarot-v3/` 的鯊鯊塔羅原始 PNG 縮小而來：`cards/*.jpg` 大圖、`cards/thumb/` 縮圖、`cards/back.jpg` 牌背＝月蝕珍珠貝款）。
+## 檔案結構
+
+| 檔案 | 內容 |
+|---|---|
+| `index.html`、`style.css` | 頁面與樣式 |
+| `meanings.js` | 78 張牌的牌義（正逆位、感情、事業／學業、自我成長、逆位的各面向、建議） |
+| `cards.js` | 牌的資料、牌陣、每個情境適用的牌陣 |
+| `reading.js` | 把抽到的牌組成解讀文字（總結、故事、情境解讀、隨手一抽的結論） |
+| `live.js` | 牌面活起來的動態 |
+| `js/core.js` | 共用工具、狀態、星空背景、粒子特效、音效 |
+| `js/table.js` | 牌桌版面、牌位與牌的建立 |
+| `js/home.js` | 起始頁：星座軌道、每日一牌與隨手一抽的入口 |
+| `js/quick.js` | 隨手一抽 |
+| `js/wheel.js` | 牌陣輪盤 |
+| `js/draw.js` | 洗牌、3D 牌環、抽牌、翻牌、回到起始頁 |
+| `js/views.js` | 單張牌詳情、完整解讀、占卜紀錄、星座連線 |
+| `js/extras.js` | 每日一牌日曆、存成圖片、牌卡畫廊 |
+| `js/main.js` | 按鈕事件與初始化 |
+| `cards/` | 網頁用的牌卡圖片（由 `tarot-v3/` 的原始 PNG 縮小而來） |
+| `tests/run.js` | 自動測試 |
+
+`js/` 裡的檔案依序載入（順序寫在 `index.html`），彼此共用變數，所以不要隨意調換順序。修改 JS 或 CSS 後，記得更新 `index.html` 裡的 `?v=` 版本號，手機才會抓到新檔案。
+
+## 自動測試
+
+在模擬的 iPhone 與電腦瀏覽器裡跑完整流程，約 6～7 分鐘：
+
+```bash
+npm i -D playwright && npx playwright install chromium   # 第一次才需要
+node tests/run.js                # 全部
+node tests/run.js quick zoom     # 只跑指定項目
+```
+
+| 項目 | 檢查什麼 |
+|---|---|
+| `flow` | 各情境的牌陣都能從頭抽到完整解讀（手機與電腦） |
+| `daily` | 每日一牌抽完後顯示「今日已抽」，再點是回顧 |
+| `quick` | 隨手一抽能抽出結論，並存進紀錄 |
+| `scenes` | 每個情境只列出自己的牌陣，編號從 I 開始 |
+| `stress` | 快速操作後不會出錯，起始頁繪圖量不會大到讓 iPhone 當掉 |
+| `zoom` | 畫面被放大時，牌的位置不會跑掉 |
+

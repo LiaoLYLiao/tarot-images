@@ -48,6 +48,8 @@ const POS_LENS = {
   靈性: (kw) => `內在與信念層面給你的指引是「${kw}」`,
 };
 
+// 某張牌在某個面向（love／work／self）的意思；逆位時用逆位的寫法（建議沒有分正逆位）
+const aspectOf = (p, field) => (p.reversed && p.card[`${field}Rev`]) || p.card[field];
 const kwOf = (p) => (p.reversed ? p.card.rev : p.card.up);
 const textOf = (p) => (p.reversed ? p.card.revText : p.card.upText);
 const orientOf = (p) => (p.reversed ? '逆位' : '正位');
@@ -141,6 +143,10 @@ function storyParagraphs(picks, spreadKey, spread) {
     out.push(res.reversed
       ? `最終的結果牌「${res.card.zh}」是逆位，代表若不調整，事情可能不如預期。好消息是，結果會隨著你的選擇而改變。`
       : `最終的結果牌「${res.card.zh}」是正位：${textOf(res)}`);
+  } else if (spreadKey === 'quick') {
+    const p = picks[0], v = quickVerdict(p.card, p.reversed);
+    out.push(`抽到「${p.card.zh}」（${orientOf(p)}），答案是「${v.zh}」。${v.line}`);
+    out.push(textOf(p));
   } else if (spreadKey === 'choice') {
     const now = at('現況'), aMid = at('A 的發展'), aEnd = at('A 的結果'), bMid = at('B 的發展'), bEnd = at('B 的結果');
     out.push(`你站在「${now.card.zh}」（${kwOf(now)}）的處境上做選擇。`);
@@ -188,8 +194,7 @@ const TOPICS = {
 function topicLine(p, topic) {
   const t = TOPICS[topic];
   if (!t.field) return '';
-  const caveat = p.reversed ? '（逆位：這股能量目前受阻，需要多加留意）' : '';
-  return `${p.card[t.field]}${caveat}`;
+  return aspectOf(p, t.field);
 }
 
 // 針對問題分類的解讀：開頭一句總評，加上每張牌在這個面向上的意思
@@ -202,7 +207,7 @@ function topicReading(picks, spreadKey, spread, topic) {
   let intro;
   if (spreadKey === 'theme') {
     const T = at('主題');
-    intro = `主題牌「${T.card.zh}」為你的${t.zh}定調：${T.card[t.field]}`;
+    intro = `主題牌「${T.card.zh}」為你的${t.zh}定調：${aspectOf(T, t.field)}`;
   } else if (picks.length === 1) {
     intro = `今天在${t.zh}上的指引來自「${last.card.zh}」。`;
   } else {
@@ -242,7 +247,10 @@ function summaryReading(picks, spreadKey, spread, topic) {
     : '整體能量有些卡住，這是提醒你停下來調整方向的時候';
   const t = TOPICS[topic];
   const lines = [];
-  if (picks.length === 1) {
+  if (spreadKey === 'quick') {
+    const v = quickVerdict(core.card, core.reversed);
+    lines.push(`答案是「${v.zh}」：${v.line}`);
+  } else if (picks.length === 1) {
     lines.push(`今天的關鍵字是「${kwOf(core)}」。`);
   } else {
     lines.push(`${tone}。`);

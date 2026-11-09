@@ -393,7 +393,11 @@ const fx = (() => {
     parts.push({ x, y, vx: (rand() - 0.5) * 0.3, vy: -0.3 - rand() * 0.6, g: 0, drag: 1, life: 1, decay: 0.004 + rand() * 0.004, s: 4 + rand() * 8, k: 'gold' });
   }
 
+  let dirty = true;
   function frame() {
+    const busy = parts.length || rings.length || circles.length || state.phase === 'shuffling';
+    if (!busy && !dirty) { requestAnimationFrame(frame); return; }
+    dirty = !!busy;
     ctx.clearRect(0, 0, innerWidth, innerHeight);
     ctx.globalCompositeOperation = 'lighter';
     parts = parts.filter((p) => p.life > 0);
@@ -724,9 +728,13 @@ const orbit = (() => {
     stepA = (Math.PI * 2) / orbs.length;
   }
 
+  let lastW = 0;
   function frame() {
-    base += (target - base) * 0.12;
+    const settled = !drag && Math.abs(target - base) < 0.0005;
+    base = settled ? target : base + (target - base) * 0.12;
     const w = root.clientWidth, h = root.clientHeight;
+    if (settled && lastW === w) { raf = 0; return; } // 停住了：不再重畫，等下一次選擇或拖曳
+    if (settled) lastW = w;
     const cx = w / 2, cy = h / 2, rx = w * 0.42, ry = h * 0.3;
     orbs.forEach((o, i) => {
       const a = base + i * stepA, depth = (Math.sin(a) + 1) / 2;
@@ -736,6 +744,7 @@ const orbit = (() => {
     });
     raf = requestAnimationFrame(frame);
   }
+  const kick = () => { lastW = 0; if (!raf && state.screen === 'home') raf = requestAnimationFrame(frame); };
 
   function select(i) {
     const n = orbs.length, sel = ((i % n) + n) % n;
@@ -743,6 +752,7 @@ const orbit = (() => {
     while (t - base > Math.PI) t -= Math.PI * 2;
     while (t - base < -Math.PI) t += Math.PI * 2;
     target = t;
+    kick();
     orbs.forEach((o, k) => o.classList.toggle('on', k === sel));
     // 連續快速切換時，等停下來再轉中央的牌、換背景色
     clearTimeout(spinTimer);
@@ -765,6 +775,7 @@ const orbit = (() => {
     drag.moved += Math.abs(dx);
     base += dx * 0.012;
     target = base;
+    kick();
   });
   root.addEventListener('pointerup', (e) => {
     const d = drag;
@@ -785,8 +796,9 @@ const orbit = (() => {
 
   return {
     select(key) { refresh(); select(Math.max(keys.indexOf(key), 0)); },
-    start() { if (!raf) raf = requestAnimationFrame(frame); },
+    start() { lastW = 0; if (!raf) raf = requestAnimationFrame(frame); },
     stop() { cancelAnimationFrame(raf); raf = 0; },
+    kick,
   };
 })();
 
@@ -2350,6 +2362,7 @@ addEventListener('resize', () => {
   resizeTimer = setTimeout(() => {
     sky.init();
     fx.resize();
+    orbit.kick();
     gallery.resize();
     if (state.phase === 'idle') state.els.forEach((el, i) => place(el, stackPos(i)));
     if (state.phase === 'picking' || state.phase === 'dealing') ring.layout();

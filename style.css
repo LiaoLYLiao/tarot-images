@@ -113,22 +113,25 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .orbit-path .comet {
   stroke: rgba(255, 244, 214, .95); stroke-width: 2.2; stroke-linecap: round; stroke-dasharray: 7 93;
-  filter: drop-shadow(0 0 4px rgba(var(--accent-rgb), .9));
   animation: comet 7s linear infinite;
 }
 @keyframes comet { to { stroke-dashoffset: -100; } }
+.orbit-card::before {
+  content: ''; position: absolute; inset: -22% -40%; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(var(--accent-rgb), .45), rgba(var(--accent-rgb), 0));
+}
 .orbit-card { position: absolute; left: 50%; top: 50%; z-index: 2; height: 84%; aspect-ratio: 958 / 1642; transform: translate(-50%, -53%); perspective: 900px; pointer-events: none; }
 .oc-face {
   width: 100%; height: 100%; border-radius: 6% / 3.5%;
   background: var(--back) center / 100% 100%;
-  box-shadow: 0 24px 54px rgba(0, 0, 0, .62), 0 0 0 1px rgba(232, 200, 119, .45), 0 0 70px rgba(var(--accent-rgb), .55);
-  animation: ocFloat 5s ease-in-out infinite; transition: box-shadow .6s;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, .6), 0 0 0 1px rgba(232, 200, 119, .45);
+  animation: ocFloat 5s ease-in-out infinite;
 }
 @keyframes ocFloat { 50% { transform: translateY(-8px) rotateY(10deg) rotateX(4deg); } }
 .orbit-card.spin .oc-face { animation: ocSpin .9s cubic-bezier(.3, .7, .3, 1), ocFloat 5s ease-in-out .9s infinite; }
 @keyframes ocSpin { from { transform: rotateY(-360deg) scale(.88); } }
 
-.orb { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--ink); will-change: transform; }
+.orb { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--ink);  }
 .orb-icon {
   position: relative; display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%;
   border: 1px solid rgba(var(--orb-rgb, 232, 200, 119), .32); background: rgba(12, 10, 32, .92);
@@ -191,8 +194,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* 牌陣輪盤 */
 #wheel {
   position: fixed; inset: 0; z-index: 9; display: grid; place-items: center;
-  background: radial-gradient(circle at 50% 50%, rgba(14, 10, 40, .82), rgba(4, 3, 14, .92));
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  background: radial-gradient(circle at 50% 50%, rgba(14, 10, 40, .94), rgba(4, 3, 14, .97));
   opacity: 0; transition: opacity .35s;
   --D: min(86vw, 62vh, 460px);
 }
@@ -288,8 +290,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* 主要按鈕：深色玻璃、細金邊、帶一點微光 */
 .primary {
   padding: 12px 32px; border-radius: 999px; border: 1px solid rgba(232, 200, 119, .75);
-  background: linear-gradient(180deg, rgba(232, 200, 119, .22), rgba(232, 200, 119, .05)), rgba(14, 11, 38, .6);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  background: linear-gradient(180deg, rgba(232, 200, 119, .22), rgba(232, 200, 119, .05)), rgba(14, 11, 38, .88);
   color: #f8e9c0; font-weight: 400; letter-spacing: .32em; text-shadow: 0 0 10px rgba(232, 200, 119, .45);
   box-shadow: 0 0 26px rgba(232, 200, 119, .2), inset 0 0 14px rgba(232, 200, 119, .12);
   transition: transform .2s, box-shadow .25s, border-color .25s;
@@ -501,7 +502,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #tooltip {
   position: fixed; z-index: 9; max-width: 260px; padding: 12px 14px;
   border-radius: 12px; border: 1px solid var(--line); background: var(--panel);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   font-size: 13px; line-height: 1.6; pointer-events: none;
   box-shadow: 0 10px 40px rgba(0, 0, 0, .5);
 }
@@ -512,8 +512,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- 詳細資訊 ---------- */
 #modal, #sheet {
   position: fixed; inset: 0; z-index: 10;
-  background: rgba(4, 3, 14, .7);
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  background: rgba(4, 3, 14, .9);
   display: flex; align-items: center; justify-content: center;
   animation: fade .35s both;
 }
@@ -649,7 +648,7 @@ textarea.note:focus { border-color: var(--gold); }
 
 #share {
   position: fixed; inset: 0; z-index: 11; display: flex; align-items: center; justify-content: center;
-  background: rgba(4, 3, 14, .8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  background: rgba(4, 3, 14, .92);
   animation: fade .3s both;
 }
 #share[hidden] { display: none; }

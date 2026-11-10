@@ -3,19 +3,9 @@
 // 占卜流程：洗牌、3D 牌環、抽牌、翻牌與回到起始頁
 
 /* ================= 洗牌 ================= */
-let motionAsked = false;
-async function askMotion() {
-  if (motionAsked) return;
-  motionAsked = true;
-  if (typeof DeviceMotionEvent !== 'undefined' && DeviceMotionEvent.requestPermission) {
-    try { await DeviceMotionEvent.requestPermission(); } catch { /* 使用者拒絕就算了 */ }
-  }
-}
-
 async function startShuffle() {
   if (state.phase === 'shuffling') return;
   sound.unlock();
-  askMotion();
   state.phase = 'shuffling';
   state.deck = shuffled(CARDS).map((card) => ({ card, reversed: rand() < 0.35 }));
   renderSlots();

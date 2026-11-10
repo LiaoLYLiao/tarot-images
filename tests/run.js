@@ -91,6 +91,11 @@ const SUITES = {
         await page.click('#readingBtn');
         await page.waitForTimeout(400);
         assert(await page.$('.summary'), `${label} ${spread}：完整解讀沒有總結`);
+        await page.click('.sheet-tools [data-act=ai]');
+        await page.waitForTimeout(200);
+        const prompt = await page.$eval('#askText', (e) => e.value);
+        assert(cards.every((c) => prompt.includes(c.zh)), `${label} ${spread}：AI 提問沒有列出所有抽到的牌`);
+        await page.click('#ask .close');
         await page.keyboard.press('Escape');
         await page.click('#againBtn');
         await page.waitForFunction(() => state.screen === 'home' && state.phase === 'idle', null, { timeout: 5000 });
@@ -139,7 +144,13 @@ const SUITES = {
     await page.mouse.up();
     await page.waitForSelector('.q-result:not([hidden])', { timeout: 15000 });
     const verdict = await page.$eval('.q-verdict', (e) => e.textContent);
-    assert(['去做吧', '時機未到', '再想想', '先不要'].includes(verdict), `結論不對：${verdict}`);
+    assert(['去做吧', '可以試試', '再想想', '時機未到', '先不要'].includes(verdict), `結論不對：${verdict}`);
+    await page.click('[data-q=ai]');
+    await page.waitForTimeout(300);
+    const prompt = await page.$eval('#askText', (e) => e.value);
+    const drawn = await page.$eval('.q-card', (e) => e.firstChild.textContent);
+    assert(prompt.includes(drawn) && /正位|逆位/.test(prompt), '隨手一抽的 AI 提問沒有包含抽到的牌');
+    await page.click('#ask .close');
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('starTarot.history') || '[]').filter((h) => h.spread === 'quick').length);
     assert(saved === 1, '隨手一抽沒有存進紀錄');
     await page.click('[data-q=home]');
@@ -222,6 +233,25 @@ const SUITES = {
     clearInterval(timer);
     assert(peak < 5, `抽牌過程中繪圖量最高 ${peak.toFixed(1)} 百萬像素，iPhone 可能會崩潰`);
     assert(errors.length === 0, `頁面錯誤：${errors.join(' / ')}`);
+    await ctx.close();
+  },
+
+  // 正逆位各一半：直接用網站的洗牌程式洗 400 次統計
+  async randomness(browser, url) {
+    const { ctx, page } = await open(browser, PHONE, url);
+    const r = await page.evaluate(() => {
+      let rev = 0, n = 0; const first = {};
+      for (let i = 0; i < 400; i++) {
+        const deck = shuffled(CARDS).map((card) => ({ card, reversed: rand() < 0.5 }));
+        deck.forEach((d) => { n++; if (d.reversed) rev++; });
+        first[deck[0].card.file] = (first[deck[0].card.file] || 0) + 1;
+      }
+      return { ratio: rev / n, distinctFirst: Object.keys(first).length };
+    });
+    assert(r.ratio > 0.47 && r.ratio < 0.53, `逆位比例 ${(r.ratio * 100).toFixed(1)}%，應接近 50%`);
+    assert(r.distinctFirst > 60, `洗牌後第一張牌只出現過 ${r.distinctFirst} 種，洗牌不夠隨機`);
+    const src = await page.evaluate(() => [String(startShuffle).includes('rand() < 0.5'), true]);
+    assert(src[0], '洗牌的逆位機率不是 50%');
     await ctx.close();
   },
 

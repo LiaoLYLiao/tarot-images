@@ -121,6 +121,7 @@ sheet.addEventListener('click', (e) => {
     return;
   }
   if (act === 'share') return openShare(sheetReading);
+  if (act === 'ai') return openAsk(sheetReading);
   if (act === 'clear') {
     if (confirm('確定要刪除所有占卜紀錄嗎？刪除後無法復原。')) { store.set(HISTORY_KEY, []); openHistory(); }
     return;
@@ -401,3 +402,24 @@ const gallery = (() => {
     resize() { if (built) build(); },
   };
 })();
+
+/* ================= 問 AI ================= */
+const ask = $('#ask');
+function openAsk(reading) {
+  if (!reading) return;
+  $('#askText').value = aiPrompt(reading);
+  $('#askDone').textContent = '';
+  ask.hidden = false;
+}
+$('#askCopy').addEventListener('click', async () => {
+  const t = $('#askText');
+  try {
+    await navigator.clipboard.writeText(t.value);
+    $('#askDone').textContent = '已複製，貼到 AI 聊天視窗就可以了';
+  } catch {
+    t.focus();
+    t.select();
+    $('#askDone').textContent = '請長按文字，選「全選」再「拷貝」';
+  }
+});
+ask.addEventListener('click', (e) => { if (e.target === ask || e.target.closest('.close')) ask.hidden = true; });

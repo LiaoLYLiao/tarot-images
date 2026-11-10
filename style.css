@@ -812,6 +812,7 @@ body.gallery-mode #spreadName, body.gallery-mode .screen, body.gallery-mode #qLa
 }
 .q-result[hidden] { display: none; }
 .q-result.v-yes { --v: 150, 235, 170; }
+.q-result.v-lean { --v: 190, 230, 150; }
 .q-result.v-wait { --v: 232, 200, 119; }
 .q-result.v-think { --v: 185, 162, 255; }
 .q-result.v-no { --v: 255, 150, 160; }
@@ -905,3 +906,23 @@ body.gallery-mode #spreadName, body.gallery-mode .screen, body.gallery-mode #qLa
 @media (prefers-reduced-motion: reduce) {
   .q-circle, .q-rays.on, #quick.opened .case-light { animation: none; }
 }
+
+/* ---------- 問 AI ---------- */
+#ask {
+  position: fixed; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: center;
+  background: rgba(4, 3, 14, .9); animation: fade .3s both;
+}
+#ask[hidden] { display: none; }
+.ask-body {
+  position: relative; width: min(560px, calc(100% - 32px)); max-height: 88vh; display: flex; flex-direction: column; gap: 12px;
+  padding: 26px 22px 20px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel);
+}
+.ask-body h2 { margin: 0; font-size: 19px; font-weight: 400; letter-spacing: .2em; color: var(--gold); }
+.ask-sub { margin: 0; font-size: 13px; font-weight: 300; line-height: 1.7; color: rgba(225, 218, 240, .75); }
+#askText {
+  flex: 1; min-height: 240px; width: 100%; resize: vertical; padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: rgba(10, 8, 30, .7); color: #f7ecd2;
+  font: 300 16px/1.7 var(--serif); user-select: text; -webkit-user-select: text;
+}
+.ask-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+#askDone { font-size: 13px; color: #a9e7b8; }

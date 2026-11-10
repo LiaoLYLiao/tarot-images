@@ -66,7 +66,7 @@ const quick = (() => {
     busy = true;
     sound.unlock();
     const card = CARDS[Math.floor(rand() * CARDS.length)];
-    const reversed = rand() < 0.35;
+    const reversed = rand() < 0.5; // 正逆位各一半，完全交給亂數
     cur = { card, reversed };
     const kind = KIND_FX[kindOf(card)];
     layer.style.setProperty('--qc', kind.color);
@@ -193,6 +193,7 @@ const quick = (() => {
     if (act === 'again') { reset(); sound.riffle(); setTimeout(() => { root.classList.add('opened'); ready = true; }, 250); }
     else if (act === 'detail' && cur) openModal(cur, true);
     else if (act === 'share' && lastReading) openShare(lastReading);
+    else if (act === 'ai' && lastReading) openAsk(lastReading);
     else if (act === 'home' || e.target.closest('.q-back')) { leave(); showHome('quick'); }
   });
 

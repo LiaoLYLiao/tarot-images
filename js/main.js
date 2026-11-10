@@ -40,7 +40,7 @@ $('#soundBtn').addEventListener('click', (e) => {
   e.currentTarget.classList.toggle('off', state.muted);
 });
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { wheel.close(); closeModal(); sheet.hidden = true; share.hidden = true; closeTooltip(); }
+  if (e.key === 'Escape') { ask.hidden = true; wheel.close(); closeModal(); sheet.hidden = true; share.hidden = true; closeTooltip(); }
 });
 
 // 搖一搖洗牌（iPhone 需要權限才會有動作感應，我們不主動跳出詢問，所以 iPhone 上不會觸發）

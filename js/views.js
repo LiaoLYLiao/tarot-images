@@ -232,7 +232,7 @@ function openSheet(reading = currentReading(), back = null) {
     <h2>${sp.name}</h2>
     <p class="q">${reading.question ? `「${esc(reading.question)}」` : '你的牌陣'}</p>
     <p class="meta"><span>${topic.zh}</span>${reading.t ? `<span>${fmtTime(reading.t)}</span>` : ''}</p>
-    <div class="sheet-tools"><button class="with-icon" data-act="share"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 7.5L12 3.5l4 4"/><path d="M6.5 11H5v9.5h14V11h-1.5"/></svg>存成圖片</button>${reading.spread === 'one' && back !== 'calendar' ? '<button class="with-icon" data-act="calendar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>每日一牌日曆</button>' : ''}</div>
+    <div class="sheet-tools"><button class="with-icon" data-act="ai">✦ 問 AI</button><button class="with-icon" data-act="share"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 7.5L12 3.5l4 4"/><path d="M6.5 11H5v9.5h14V11h-1.5"/></svg>存成圖片</button>${reading.spread === 'one' && back !== 'calendar' ? '<button class="with-icon" data-act="calendar"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5.5" width="16" height="14.5" rx="2"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg>每日一牌日曆</button>' : ''}</div>
 
     <section class="summary">
       <p class="sum-k">Summary · 總結</p>

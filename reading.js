@@ -270,13 +270,61 @@ function summaryReading(picks, spreadKey, spread, topic) {
 }
 
 // ---------- 隨手一抽：用一張牌回答「要不要做」 ----------
-// 這些牌正位時偏向阻礙或提醒，其餘的牌正位時偏向支持
-const CAUTION = new Set(['Tower', 'Devil', 'Moon', 'Death', 'HangedMan', 'FiveWands', 'TenWands', 'FourCups', 'FiveCups',
-  'EightCups', 'ThreeSwords', 'FiveSwords', 'SevenSwords', 'EightSwords', 'NineSwords', 'TenSwords', 'TwoSwords', 'FivePentacles', 'FourPentacles']);
+// 每張牌的正位、逆位各自評分：+2 強烈支持、+1 支持、0 中性（還看不清楚）、-1 時機未到、-2 不支持。
+// 正逆位不一定相反：例如惡魔逆位是掙脫束縛（支持），命運之輪逆位是運勢低潮（時機未到）。
+const QUICK_SCORE = {
+  Fool: [2, -1], Magician: [2, -1], HighPriestess: [0, 0], Empress: [2, 0], Emperor: [1, -1], Hierophant: [1, 0],
+  Lovers: [2, 0], Chariot: [2, -1], Strength: [2, 0], Hermit: [0, -1], WheelOfFortune: [2, -1], Justice: [1, 0],
+  HangedMan: [-1, 1], Death: [0, -1], Temperance: [1, -1], Devil: [-2, 1], Tower: [-2, -1], Star: [2, 0],
+  Moon: [-1, 1], Sun: [2, 1], Judgement: [2, -1], World: [2, -1],
+  AceWands: [2, -1], TwoWands: [1, 0], ThreeWands: [2, -1], FourWands: [2, 0], FiveWands: [-1, 0], SixWands: [2, -1],
+  SevenWands: [1, -1], EightWands: [2, -1], NineWands: [0, -1], TenWands: [-1, 1], PageWands: [1, -1], KnightWands: [1, -2],
+  QueenWands: [2, -1], KingWands: [2, -1],
+  AceCups: [2, -1], TwoCups: [2, -1], ThreeCups: [2, -1], FourCups: [-1, 1], FiveCups: [-2, 1], SixCups: [0, 0],
+  SevenCups: [-1, 1], EightCups: [0, 0], NineCups: [2, 0], TenCups: [2, 0], PageCups: [1, 0], KnightCups: [1, -1],
+  QueenCups: [1, 0], KingCups: [1, 0],
+  AceSwords: [2, -1], TwoSwords: [0, 0], ThreeSwords: [-2, 0], FourSwords: [-1, 1], FiveSwords: [-2, 0], SixSwords: [1, -1],
+  SevenSwords: [-2, 0], EightSwords: [-1, 1], NineSwords: [-2, 0], TenSwords: [-2, 0], PageSwords: [0, 0], KnightSwords: [1, -2],
+  QueenSwords: [1, 0], KingSwords: [1, -1],
+  AcePentacles: [2, -1], TwoPentacles: [0, 0], ThreePentacles: [2, -1], FourPentacles: [-1, 0], FivePentacles: [-2, 0],
+  SixPentacles: [1, -1], SevenPentacles: [-1, -1], EightPentacles: [1, -1], NinePentacles: [2, 0], TenPentacles: [2, -1],
+  PagePentacles: [1, -1], KnightPentacles: [1, -1], QueenPentacles: [1, -1], KingPentacles: [2, -1],
+};
+const VERDICTS = {
+  2: { key: 'yes', en: 'Yes', zh: '去做吧', line: '牌面的能量很順，相信自己，放手去做吧。' },
+  1: { key: 'lean', en: 'Go gently', zh: '可以試試', line: '整體是支持的，做好準備、一步一步來就好。' },
+  0: { key: 'think', en: 'Think again', zh: '再想想', line: '現在還看不清楚，多蒐集一點資訊、問問自己的心，再決定。' },
+  '-1': { key: 'wait', en: 'Not yet', zh: '時機未到', line: '方向不一定錯，只是時機還沒成熟，先等一等、多準備一點。' },
+  '-2': { key: 'no', en: 'No', zh: '先不要', line: '這次的能量不太支持，先停下來，不做也是一種選擇。' },
+};
 function quickVerdict(card, reversed) {
-  const good = !CAUTION.has(card.file);
-  if (good && !reversed) return { key: 'yes', en: 'Yes', zh: '去做吧', line: '牌面的能量是順的，相信自己，放手去做吧。' };
-  if (good && reversed) return { key: 'wait', en: 'Not yet', zh: '時機未到', line: '方向沒有錯，只是時機還沒成熟，再等一等、多準備一點。' };
-  if (!good && reversed) return { key: 'think', en: 'Think again', zh: '再想想', line: '阻礙正在鬆動，但還有沒看清楚的地方，多想一下再決定。' };
-  return { key: 'no', en: 'No', zh: '先不要', line: '這次的能量不太支持，先停下來，不做也是一種選擇。' };
+  const score = QUICK_SCORE[card.file][reversed ? 1 : 0];
+  return { ...VERDICTS[score], score };
+}
+
+// ---------- 給 AI 的提問：讓使用者自己貼到 ChatGPT、Claude、Gemini 等聊天機器人 ----------
+function aiPrompt(reading) {
+  const sp = SPREADS[reading.spread];
+  const picks = [...reading.picks].sort((a, b) => a.slot - b.slot);
+  const topic = TOPICS[reading.topic] || TOPICS.general;
+  const lines = [];
+  lines.push('你是一位溫柔、專業的塔羅解牌師。請根據我抽到的牌，針對我的問題給我解讀。');
+  lines.push('');
+  lines.push(`我的問題：${reading.question || '（請在這裡寫下你的問題）'}`);
+  if (reading.spread === 'quick') lines.push('問題類型：要不要做某件事（隨手一抽，一張牌）');
+  else lines.push(`問題類型：${topic.zh}`);
+  lines.push(`牌陣：${sp.name}（${sp.positions.length} 張）`);
+  lines.push('');
+  lines.push('抽到的牌：');
+  picks.forEach((p, i) => {
+    const pos = sp.positions[p.slot];
+    lines.push(`${i + 1}. ${pos.name}（${pos.desc}）：${p.card.zh} ${p.card.en}，${p.reversed ? '逆位' : '正位'}`);
+  });
+  lines.push('');
+  lines.push('請這樣回答我：');
+  lines.push('1. 先用兩三句話給我總結和明確的方向。');
+  lines.push('2. 再逐張說明每張牌在它的牌位上，和我的問題有什麼關係。');
+  lines.push('3. 最後給我一到三個具體、做得到的建議。');
+  lines.push('請用繁體中文，語氣溫柔但直接，不要過度保證結果。');
+  return lines.join('\n');
 }

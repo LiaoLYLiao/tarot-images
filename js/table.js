@@ -141,6 +141,7 @@ function makeCard() {
 }
 
 // 牌堆一開始藏著，洗牌時才出現
+const VISIBLE_STACK = 12;
 function buildStack() {
   const table = $('#table');
   table.innerHTML = '';
@@ -150,6 +151,9 @@ function buildStack() {
     el.style.transitionDuration = '0s';
     el.style.opacity = 0;
     el.style.pointerEvents = 'none';
+    // 疊在一起時只看得到最上面幾張；其餘的牌不畫出來，iPhone 才不會因為 78 張 3D 牌同時洗牌而崩潰。
+    // 被抽中時（pickFromRing）才會顯示出來。
+    if (i < CARDS.length - VISIBLE_STACK) el.style.display = 'none';
     place(el, stackPos(i));
     table.appendChild(el);
     el.addEventListener('click', onCardClick);

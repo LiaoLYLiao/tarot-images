@@ -206,6 +206,25 @@ const SUITES = {
     await ctx.close();
   },
 
+  // 洗牌與抽牌過程中，繪圖量不能大到讓 iPhone 崩潰（曾經在洗牌時達到約 16 百萬像素）
+  async drawMemory(browser, url) {
+    const { ctx, page, errors } = await open(browser, PHONE, url);
+    const cdp = await ctx.newCDPSession(page);
+    let layers = [];
+    cdp.on('LayerTree.layerTreeDidChange', (e) => { if (e.layers) layers = e.layers; });
+    await cdp.send('LayerTree.enable');
+    let peak = 0;
+    const timer = setInterval(() => {
+      const px = layers.filter((l) => l.drawsContent).reduce((s, l) => s + l.width * l.height, 0) / 1e6;
+      peak = Math.max(peak, px);
+    }, 100);
+    await drawSpread(page, 'general', 'celtic');
+    clearInterval(timer);
+    assert(peak < 5, `抽牌過程中繪圖量最高 ${peak.toFixed(1)} 百萬像素，iPhone 可能會崩潰`);
+    assert(errors.length === 0, `頁面錯誤：${errors.join(' / ')}`);
+    await ctx.close();
+  },
+
   // 畫面被放大（iPhone 點兩下放大）時，牌的位置不能跑掉
   async zoom(browser, url) {
     const { ctx, page } = await open(browser, PHONE, url);

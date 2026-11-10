@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Noto+Serif+TC:wght@300;400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=20261110e">
+<link rel="stylesheet" href="style.css?v=20261111a">
 </head>
 <body>
 <div id="aura"></div>
@@ -102,6 +102,7 @@
     <p class="q-advice"></p>
     <div class="q-actions">
       <button class="primary" data-q="again">再抽一張</button>
+      <button data-q="ai">問 AI</button>
       <button data-q="share">存成圖片</button>
       <button data-q="detail">完整牌義</button>
       <button data-q="home">回到星空</button>
@@ -151,6 +152,19 @@
   </div>
 </div>
 
+<div id="ask" hidden>
+  <div class="ask-body">
+    <button class="close" aria-label="關閉">✕</button>
+    <h2>問 AI 更深入的解讀</h2>
+    <p class="ask-sub">複製下面這段文字，貼到 ChatGPT、Claude 或 Gemini，AI 就能依你的問題和抽到的牌給你解讀。可以先在裡面修改你的問題。</p>
+    <textarea id="askText" spellcheck="false"></textarea>
+    <div class="ask-actions">
+      <button class="primary" id="askCopy">複製提問</button>
+      <span id="askDone" role="status"></span>
+    </div>
+  </div>
+</div>
+
 <div id="share" hidden>
   <div class="share-body">
     <button class="close" aria-label="關閉">✕</button>
@@ -163,18 +177,18 @@
   </div>
 </div>
 
-<script src="meanings.js?v=20261110e"></script>
-<script src="cards.js?v=20261110e"></script>
-<script src="reading.js?v=20261110e"></script>
-<script src="live.js?v=20261110e"></script>
-<script src="js/core.js?v=20261110e"></script>
-<script src="js/table.js?v=20261110e"></script>
-<script src="js/home.js?v=20261110e"></script>
-<script src="js/quick.js?v=20261110e"></script>
-<script src="js/wheel.js?v=20261110e"></script>
-<script src="js/draw.js?v=20261110e"></script>
-<script src="js/views.js?v=20261110e"></script>
-<script src="js/extras.js?v=20261110e"></script>
-<script src="js/main.js?v=20261110e"></script>
+<script src="meanings.js?v=20261111a"></script>
+<script src="cards.js?v=20261111a"></script>
+<script src="reading.js?v=20261111a"></script>
+<script src="live.js?v=20261111a"></script>
+<script src="js/core.js?v=20261111a"></script>
+<script src="js/table.js?v=20261111a"></script>
+<script src="js/home.js?v=20261111a"></script>
+<script src="js/quick.js?v=20261111a"></script>
+<script src="js/wheel.js?v=20261111a"></script>
+<script src="js/draw.js?v=20261111a"></script>
+<script src="js/views.js?v=20261111a"></script>
+<script src="js/extras.js?v=20261111a"></script>
+<script src="js/main.js?v=20261111a"></script>
 </body>
 </html>

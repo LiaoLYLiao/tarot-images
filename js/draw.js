@@ -7,7 +7,7 @@ async function startShuffle() {
   if (state.phase === 'shuffling') return;
   sound.unlock();
   state.phase = 'shuffling';
-  state.deck = shuffled(CARDS).map((card) => ({ card, reversed: rand() < 0.35 }));
+  state.deck = shuffled(CARDS).map((card) => ({ card, reversed: rand() < 0.5 })); // 正逆位各一半，完全交給亂數
   renderSlots();
   updateHeader();
 
